@@ -53,6 +53,7 @@ export function NodeRow({ node, depth, statuses, doneStatusIds, nowMs }: Props) 
   const cycleStatusFor = useStore((s) => s.cycleStatusFor);
   const cyclePointsFor = useStore((s) => s.cyclePointsFor);
   const toggleTimerFor = useStore((s) => s.toggleTimerFor);
+  const searchTag = useStore((s) => s.searchTag);
 
   const { register, startDrag, dragId, indicator } = useDrag();
 
@@ -174,7 +175,12 @@ export function NodeRow({ node, depth, statuses, doneStatusIds, nowMs }: Props) 
         ) : (
           <Pressable style={styles.contentWrap} onPress={onContentPress}>
             {node.content ? (
-              <InlineMarkdown text={node.content} style={styles.content} numberOfLines={1} />
+              <InlineMarkdown
+                text={node.content}
+                style={styles.content}
+                numberOfLines={1}
+                onTagPress={searchTag}
+              />
             ) : (
               <Text style={[styles.content, styles.placeholder]} numberOfLines={1}>
                 Empty

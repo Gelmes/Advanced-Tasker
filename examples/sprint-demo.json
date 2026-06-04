@@ -83,7 +83,7 @@
           },
           {
             "id": "n2",
-            "content": "Auth API",
+            "content": "Auth API #backend",
             "status": "done",
             "storyPoints": 5,
             "time": {
@@ -107,7 +107,7 @@
           },
           {
             "id": "n3",
-            "content": "Login UI",
+            "content": "Login UI #frontend",
             "status": "done",
             "storyPoints": 3,
             "time": {
@@ -131,7 +131,7 @@
           },
           {
             "id": "n4",
-            "content": "DB schema",
+            "content": "DB schema #backend",
             "status": "done",
             "storyPoints": 5,
             "time": {
@@ -155,7 +155,7 @@
           },
           {
             "id": "n6",
-            "content": "Profile page",
+            "content": "Profile page #frontend",
             "status": "done",
             "storyPoints": 8,
             "time": {
@@ -182,7 +182,7 @@
             "children": [
               {
                 "id": "n5",
-                "content": "Designs approved by Sam — see Figma frame 12",
+                "content": "Designs approved by Sam #bookmarked — Figma frame 12",
                 "status": null,
                 "storyPoints": null,
                 "time": {
@@ -199,7 +199,7 @@
           },
           {
             "id": "n7",
-            "content": "Settings screen",
+            "content": "Settings screen #frontend",
             "status": "done",
             "storyPoints": 3,
             "time": {
@@ -231,7 +231,7 @@
           },
           {
             "id": "n8",
-            "content": "Search",
+            "content": "Search #frontend #important",
             "status": "done",
             "storyPoints": 8,
             "time": {
@@ -279,7 +279,7 @@
           },
           {
             "id": "n10",
-            "content": "Billing integration",
+            "content": "Billing integration #important",
             "status": "todo",
             "storyPoints": 13,
             "time": {

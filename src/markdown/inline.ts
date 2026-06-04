@@ -7,7 +7,8 @@ export type Segment =
   | { type: 'bold'; value: string }
   | { type: 'italic'; value: string }
   | { type: 'code'; value: string }
-  | { type: 'link'; value: string; href: string };
+  | { type: 'link'; value: string; href: string }
+  | { type: 'tag'; value: string }; // value excludes the leading '#'
 
 interface Rule {
   re: RegExp;
@@ -22,6 +23,10 @@ const RULES: Rule[] = [
   {
     re: /\[([^\]]+)\]\(([^)]+)\)/,
     make: (m) => ({ type: 'link', value: m[1], href: m[2] }),
+  },
+  {
+    re: /(?<![\w])#([\p{L}\p{N}_-]+)/u,
+    make: (m) => ({ type: 'tag', value: m[1] }),
   },
 ];
 

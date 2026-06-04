@@ -43,33 +43,33 @@ const tasks = [
     h('2026-05-19T09:30:00', 'doing'),
     h('2026-05-20T11:00:00', 'done'),
   ], 3),
-  task('Auth API', 5, '2026-05-19T09:05:00', [
+  task('Auth API #backend', 5, '2026-05-19T09:05:00', [
     h('2026-05-20T10:00:00', 'doing'),
     h('2026-05-23T16:00:00', 'done'),
   ], 9),
-  task('Login UI', 3, '2026-05-19T09:10:00', [
+  task('Login UI #frontend', 3, '2026-05-19T09:10:00', [
     h('2026-05-23T09:00:00', 'doing'),
     h('2026-05-24T15:00:00', 'done'),
   ], 5),
-  task('DB schema', 5, '2026-05-19T09:15:00', [
+  task('DB schema #backend', 5, '2026-05-19T09:15:00', [
     h('2026-05-21T09:00:00', 'doing'),
     h('2026-05-22T17:00:00', 'done'),
   ], 6),
-  task('Profile page', 8, '2026-05-22T10:00:00', [
+  task('Profile page #frontend', 8, '2026-05-22T10:00:00', [
     h('2026-05-22T10:00:00', 'todo'),
     h('2026-05-26T09:00:00', 'doing'),
     h('2026-05-29T16:00:00', 'done'),
   ], 14, [
     // a note captured while working (status null, excluded from analytics)
-    task('Designs approved by Sam — see Figma frame 12', null, '2026-05-26T09:30:00', [], 0),
+    task('Designs approved by Sam #bookmarked — Figma frame 12', null, '2026-05-26T09:30:00', [], 0),
   ]),
-  task('Settings screen', 3, '2026-05-22T10:05:00', [
+  task('Settings screen #frontend', 3, '2026-05-22T10:05:00', [
     h('2026-05-27T09:00:00', 'doing'),
     h('2026-05-28T13:00:00', 'blocked'),
     h('2026-05-30T09:00:00', 'doing'),
     h('2026-05-31T15:00:00', 'done'),
   ], 7),
-  task('Search', 8, '2026-05-25T12:00:00', [
+  task('Search #frontend #important', 8, '2026-05-25T12:00:00', [
     h('2026-05-30T09:00:00', 'doing'),
     h('2026-06-02T14:00:00', 'done'),
   ], 11),
@@ -77,7 +77,7 @@ const tasks = [
     h('2026-05-26T12:00:00', 'todo'),
     h('2026-06-01T09:00:00', 'doing'),
   ], 4), // in progress, not done
-  task('Billing integration', 13, '2026-05-28T12:00:00', [
+  task('Billing integration #important', 13, '2026-05-28T12:00:00', [
     h('2026-05-28T12:00:00', 'todo'),
   ], 0), // not started
   task('Bug: logout crash', 2, '2026-06-01T08:00:00', [

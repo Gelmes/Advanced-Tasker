@@ -10,6 +10,7 @@ import {
   indent,
   insertSiblingAfter,
   isEmpty,
+  locate,
   moveNodeRelative,
   moveWithinSiblings,
   outdent,
@@ -80,6 +81,10 @@ export interface AppState {
   /** File names of projects open as tabs, in tab order. */
   openTabs: string[];
   sidebarOpen: boolean;
+  /** Which sidebar view is showing. */
+  sidebarTab: 'projects' | 'search';
+  /** Search/tag-filter query for the sidebar search view. */
+  tagQuery: string;
   helpOpen: boolean;
   detailsOpen: boolean;
 
@@ -133,6 +138,13 @@ export interface AppState {
 
   setHelpOpen: (open: boolean) => void;
   toggleDetails: () => void;
+
+  setSidebarTab: (tab: 'projects' | 'search') => void;
+  setTagQuery: (q: string) => void;
+  /** Open the sidebar search filtered to a tag (clicked from a node). */
+  searchTag: (tag: string) => void;
+  /** Select a node and expand its ancestors so it's visible. */
+  revealNode: (id: string) => void;
 
   // Workspace (folder) actions
   toggleSidebar: () => void;
@@ -305,6 +317,8 @@ export const useStore = create<AppState>((set, get) => {
     projects: [],
     openTabs: [],
     sidebarOpen: false,
+    sidebarTab: 'projects',
+    tagQuery: '',
     helpOpen: false,
     detailsOpen: false,
 
@@ -618,6 +632,28 @@ export const useStore = create<AppState>((set, get) => {
 
     setHelpOpen: (open) => set({ helpOpen: open }),
     toggleDetails: () => set({ detailsOpen: !get().detailsOpen }),
+
+    setSidebarTab: (tab) => set({ sidebarTab: tab }),
+    setTagQuery: (q) => set({ tagQuery: q }),
+    searchTag: (tag) =>
+      set({ sidebarOpen: true, sidebarTab: 'search', tagQuery: `#${tag}` }),
+
+    revealNode: (id) => {
+      const path = locate(get().project.root.children, id);
+      if (!path) return;
+      // Expand every ancestor so the node is visible.
+      const collapsedAncestor = path
+        .slice(0, -1)
+        .some((l) => l.siblings[l.index].collapsed);
+      if (collapsedAncestor) {
+        applySilent((root) => {
+          const p = locate(root, id);
+          if (!p) return;
+          for (let i = 0; i < p.length - 1; i++) p[i].siblings[p[i].index].collapsed = false;
+        });
+      }
+      set({ selectedId: id, mode: 'selected' });
+    },
 
     toggleSidebar: () => set({ sidebarOpen: !get().sidebarOpen }),
 

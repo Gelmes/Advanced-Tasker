@@ -144,8 +144,13 @@ resets history.
 - **Tabs:** open projects appear as tabs above the outline. Click an inactive tab to
   switch; click the active tab to rename it inline; ✕ closes it. The title is shown
   here only (not duplicated as a header or in the save indicator).
-- **Project sidebar:** a left slideout lists every project in the open workspace folder
-  (title only); click to focus one, or create a new one in the folder.
+- **Project sidebar:** a left slideout with (1) every **remembered folder** (📁 — click to
+  switch, ✕ to forget) and (2) a **Projects / Search** tab. Projects lists the open folder's
+  `.json` files; Search filters the current project by text or `#tag` (with clickable tag
+  chips) and jumps to a result on click (expanding its ancestors). `#hashtags` render in
+  purple in the outline and open the tag search when tapped — use them as categories
+  (#important, #bookmarked, …). Tag/search currently covers the open project; cross-file is
+  a future step.
 
 ## 5. Architecture
 

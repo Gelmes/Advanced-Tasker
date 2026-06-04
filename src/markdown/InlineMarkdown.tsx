@@ -6,10 +6,12 @@ interface Props {
   text: string;
   style?: StyleProp<TextStyle>;
   numberOfLines?: number;
+  /** Called when a #hashtag is tapped (value excludes the leading #). */
+  onTagPress?: (tag: string) => void;
 }
 
-/** Renders inline markdown (bold / italic / code / links) as styled Text spans. */
-export function InlineMarkdown({ text, style, numberOfLines }: Props) {
+/** Renders inline markdown (bold / italic / code / links / #tags) as styled spans. */
+export function InlineMarkdown({ text, style, numberOfLines, onTagPress }: Props) {
   const segments = parseInline(text);
 
   return (
@@ -40,6 +42,19 @@ export function InlineMarkdown({ text, style, numberOfLines }: Props) {
                 {seg.value}
               </Text>
             );
+          case 'tag':
+            return (
+              <Text
+                key={i}
+                style={styles.tag}
+                onPress={(e) => {
+                  (e as any)?.stopPropagation?.();
+                  onTagPress?.(seg.value);
+                }}
+              >
+                #{seg.value}
+              </Text>
+            );
           default:
             return <Fragment key={i}>{seg.value}</Fragment>;
         }
@@ -57,4 +72,5 @@ const styles = StyleSheet.create({
     color: '#be123c',
   },
   link: { color: '#2563eb', textDecorationLine: 'underline' },
+  tag: { color: '#7c3aed', fontWeight: '600' },
 });

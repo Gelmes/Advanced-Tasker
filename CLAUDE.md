@@ -55,8 +55,16 @@ The app is a tree of nodes rendered as an indented outline. Entry is `index.ts` 
     project. The charts UI lives in `src/components/charts/` (SVG via `react-native-svg`:
     `ChartsModal`, `LineChart`, `CycleTimeChart`), opened from the 📊 toolbar button and
     scoped to the selected subtree (or whole project).
+  - `tags.ts` — `#hashtag` extraction (word-boundary, unicode) + tag counts + node search
+    (`#tag` exact-tag filter, else substring) with breadcrumbs. Pure + tested.
   - `factory.ts`, `defaults.ts`, `ids.ts` — node/project construction, default statuses
     (each with a `kind`) and Fibonacci point scale, id generation.
+
+  **Folders & search:** `handleStore.ts` keeps a keyed set of opened folder handles
+  (IndexedDB) so the sidebar can list/switch/forget them and auto-restore the most recent.
+  The sidebar's Search tab uses `model/tags.ts`; clicking a result calls `revealNode`
+  (expand ancestors + select). Tags also render via the inline-markdown parser
+  (`markdown/inline.ts` has a `tag` segment) and open the search when tapped.
 
   **Status-history capture:** statuses carry a `kind`; each node has an append-only
   `statusHistory` of *settled* transitions. The coalescing lives in the store

@@ -25,6 +25,8 @@ import { newId } from '../model/ids';
 import { DEFAULT_STATUS_KIND } from '../model/defaults';
 import { toggleWrap } from '../markdown/inline';
 import { bankTime } from '../model/time';
+import { scrollRowIntoView } from '../rowRegistry';
+import { flattenForIndex, type IndexEntry } from '../model/searchIndex';
 import type { StatusDef } from '../model/types';
 import {
   openProject as openProjectFile,
@@ -78,6 +80,9 @@ export interface AppState {
   folders: FolderEntry[];
   currentFolderId: string | null;
   projects: ProjectRef[];
+  /** Cross-file search index for the current folder (all files). */
+  folderIndex: IndexEntry[];
+  indexing: boolean;
   /** File names of projects open as tabs, in tab order. */
   openTabs: string[];
   sidebarOpen: boolean;
@@ -157,6 +162,8 @@ export interface AppState {
   newProjectInFolder: () => Promise<void>;
   closeTab: (fileName: string) => void;
   restoreWorkspace: () => Promise<void>;
+  rebuildFolderIndex: () => Promise<void>;
+  openSearchResult: (fileName: string, id: string) => Promise<void>;
 }
 
 export const useStore = create<AppState>((set, get) => {
@@ -289,6 +296,7 @@ export const useStore = create<AppState>((set, get) => {
     const target = projects.find((p) => p.fileName === entry.lastActive) ?? projects[0];
     if (target) await get().switchProject(target.fileName);
     else await persistCurrentFolder();
+    await get().rebuildFolderIndex();
   };
 
   /** Save the current project first if it has unsaved changes and a bound file. */
@@ -315,6 +323,8 @@ export const useStore = create<AppState>((set, get) => {
     folders: [],
     currentFolderId: null,
     projects: [],
+    folderIndex: [],
+    indexing: false,
     openTabs: [],
     sidebarOpen: false,
     sidebarTab: 'projects',
@@ -574,6 +584,16 @@ export const useStore = create<AppState>((set, get) => {
         fileName && !get().openTabs.includes(fileName)
           ? [...get().openTabs, fileName]
           : get().openTabs;
+      // Snapshot the file we're leaving into the index so cross-file search stays
+      // fresh with its in-memory edits.
+      const outName = get().fileName;
+      const outProject = get().project;
+      const folderIndex = outName
+        ? [
+            ...get().folderIndex.filter((e) => e.fileName !== outName),
+            ...flattenForIndex(outProject.root.children, outName, outProject.name),
+          ]
+        : get().folderIndex;
       resetHistory();
       set({
         project,
@@ -584,6 +604,7 @@ export const useStore = create<AppState>((set, get) => {
         dirty: false,
         error: null,
         openTabs,
+        folderIndex,
       });
     },
 
@@ -653,6 +674,12 @@ export const useStore = create<AppState>((set, get) => {
         });
       }
       set({ selectedId: id, mode: 'selected' });
+      // Scroll to the row once it has (re)rendered.
+      const raf = (globalThis as any).requestAnimationFrame as
+        | ((cb: () => void) => void)
+        | undefined;
+      if (raf) raf(() => raf(() => scrollRowIntoView(id)));
+      else setTimeout(() => scrollRowIntoView(id), 50);
     },
 
     toggleSidebar: () => set({ sidebarOpen: !get().sidebarOpen }),
@@ -772,6 +799,36 @@ export const useStore = create<AppState>((set, get) => {
       } catch {
         // A failed restore is non-fatal; the user can open a folder manually.
       }
+    },
+
+    rebuildFolderIndex: async () => {
+      const { projects } = get();
+      if (!projects.length) {
+        set({ folderIndex: [] });
+        return;
+      }
+      set({ indexing: true });
+      try {
+        const all: IndexEntry[] = [];
+        for (const ref of projects) {
+          try {
+            const proj = await readProjectFromRef(ref);
+            all.push(...flattenForIndex(proj.root.children, ref.fileName, proj.name || ref.name));
+          } catch {
+            // skip files we can't read/parse
+          }
+        }
+        set({ folderIndex: all });
+      } finally {
+        set({ indexing: false });
+      }
+    },
+
+    openSearchResult: async (fileName, id) => {
+      if (fileName && fileName !== get().fileName) {
+        await get().switchProject(fileName);
+      }
+      get().revealNode(id);
     },
   };
 });

@@ -1,5 +1,6 @@
+import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { collectTags, searchNodes } from '../model/tags';
+import { flattenForIndex, searchIndex, tagCountsFromEntries } from '../model/searchIndex';
 import { useStore } from '../store/useStore';
 
 // Left slideout: remembered workspace folders (switch / forget), and a tabbed
@@ -15,6 +16,8 @@ export function ProjectSidebar() {
   const tab = useStore((s) => s.sidebarTab);
   const tagQuery = useStore((s) => s.tagQuery);
   const project = useStore((s) => s.project);
+  const folderIndex = useStore((s) => s.folderIndex);
+  const indexing = useStore((s) => s.indexing);
 
   const openFolder = useStore((s) => s.openFolder);
   const switchFolder = useStore((s) => s.switchFolder);
@@ -23,12 +26,20 @@ export function ProjectSidebar() {
   const newProjectInFolder = useStore((s) => s.newProjectInFolder);
   const setSidebarTab = useStore((s) => s.setSidebarTab);
   const setTagQuery = useStore((s) => s.setTagQuery);
-  const revealNode = useStore((s) => s.revealNode);
+  const openSearchResult = useStore((s) => s.openSearchResult);
+
+  // Cross-file: index entries for other files + the current file live from memory.
+  const entries = useMemo(
+    () => [
+      ...folderIndex.filter((e) => e.fileName !== activeFile),
+      ...flattenForIndex(project.root.children, activeFile ?? '', project.name),
+    ],
+    [folderIndex, activeFile, project],
+  );
+  const tags = tagCountsFromEntries(entries);
+  const results = searchIndex(entries, tagQuery);
 
   if (!open) return null;
-
-  const tags = collectTags(project.root.children);
-  const results = searchNodes(project.root.children, tagQuery);
 
   return (
     <View style={styles.sidebar}>
@@ -135,27 +146,35 @@ export function ProjectSidebar() {
               </View>
             )}
 
+            {indexing && <Text style={styles.empty}>Indexing folder…</Text>}
+
             {tagQuery.trim() === '' ? (
-              <Text style={styles.empty}>Type to search this project, or pick a tag.</Text>
+              <Text style={styles.empty}>Search this folder, or pick a tag.</Text>
             ) : results.length === 0 ? (
               <Text style={styles.empty}>No matches.</Text>
             ) : (
-              results.map((m) => (
-                <Pressable
-                  key={m.id}
-                  onPress={() => revealNode(m.id)}
-                  style={({ pressed }) => [styles.result, pressed && styles.itemPressed]}
-                >
-                  <Text style={styles.resultText} numberOfLines={1}>
-                    {m.content || 'Untitled'}
-                  </Text>
-                  {m.breadcrumb ? (
-                    <Text style={styles.resultCrumb} numberOfLines={1}>
-                      {m.breadcrumb}
+              results.map((m) => {
+                const otherFile = !!m.fileName && m.fileName !== activeFile;
+                const sub = [otherFile ? `📄 ${m.projectName}` : '', m.breadcrumb]
+                  .filter(Boolean)
+                  .join(' · ');
+                return (
+                  <Pressable
+                    key={`${m.fileName}:${m.id}`}
+                    onPress={() => void openSearchResult(m.fileName, m.id)}
+                    style={({ pressed }) => [styles.result, pressed && styles.itemPressed]}
+                  >
+                    <Text style={styles.resultText} numberOfLines={1}>
+                      {m.content || 'Untitled'}
                     </Text>
-                  ) : null}
-                </Pressable>
-              ))
+                    {sub ? (
+                      <Text style={styles.resultCrumb} numberOfLines={1}>
+                        {sub}
+                      </Text>
+                    ) : null}
+                  </Pressable>
+                );
+              })
             )}
           </View>
         )}

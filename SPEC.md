@@ -147,10 +147,12 @@ resets history.
 - **Project sidebar:** a left slideout with (1) every **remembered folder** (📁 — click to
   switch, ✕ to forget) and (2) a **Projects / Search** tab. Projects lists the open folder's
   `.json` files; Search filters the current project by text or `#tag` (with clickable tag
-  chips) and jumps to a result on click (expanding its ancestors). `#hashtags` render in
-  purple in the outline and open the tag search when tapped — use them as categories
-  (#important, #bookmarked, …). Tag/search currently covers the open project; cross-file is
-  a future step.
+  chips) and jumps to a result on click (expanding its ancestors **and scrolling it into
+  view**). `#hashtags` render in purple in the outline and open the tag search when tapped —
+  use them as categories (#important, #bookmarked, …). Search is **cross-file**: a folder
+  index (built by reading every file on open, kept fresh for the current file from memory)
+  lets results span all projects; clicking a result in another file opens that file first,
+  then reveals the node.
 
 ## 5. Architecture
 

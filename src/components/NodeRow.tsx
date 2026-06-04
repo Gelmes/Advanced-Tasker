@@ -8,6 +8,7 @@ import {
   type TextInput as TextInputType,
 } from 'react-native';
 import { useDrag } from './DragContext';
+import { setRow } from '../rowRegistry';
 import { InlineMarkdown } from '../markdown/InlineMarkdown';
 import { completion, computeRollup } from '../model/rollups';
 import { elapsedSeconds, formatDuration, isRunning } from '../model/time';
@@ -125,7 +126,10 @@ export function NodeRow({ node, depth, statuses, doneStatusIds, nowMs }: Props) 
   return (
     <Fragment>
       <View
-        ref={register(node.id)}
+        ref={(el) => {
+          register(node.id)(el);
+          setRow(node.id, el);
+        }}
         style={[
           styles.row,
           { paddingLeft: 8 + depth * INDENT_PX },

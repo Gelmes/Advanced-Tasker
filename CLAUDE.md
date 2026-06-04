@@ -62,9 +62,14 @@ The app is a tree of nodes rendered as an indented outline. Entry is `index.ts` 
 
   **Folders & search:** `handleStore.ts` keeps a keyed set of opened folder handles
   (IndexedDB) so the sidebar can list/switch/forget them and auto-restore the most recent.
-  The sidebar's Search tab uses `model/tags.ts`; clicking a result calls `revealNode`
-  (expand ancestors + select). Tags also render via the inline-markdown parser
-  (`markdown/inline.ts` has a `tag` segment) and open the search when tapped.
+  Search is **cross-file**: `store.folderIndex` (built by `rebuildFolderIndex`, reading every
+  file on folder open) holds `IndexEntry[]` from `model/searchIndex.ts`; the sidebar combines
+  it (minus the current file) with the current file flattened live, so edits show instantly
+  and `loadProject` snapshots the file you leave back into the index. Clicking a result calls
+  `openSearchResult` (switch to its file if needed) → `revealNode` (expand ancestors, select,
+  and scroll into view via `src/rowRegistry.ts`, which NodeRow populates with row elements).
+  Tags also render via the inline-markdown parser (`markdown/inline.ts` `tag` segment) and
+  open the search when tapped.
 
   **Status-history capture:** statuses carry a `kind`; each node has an append-only
   `statusHistory` of *settled* transitions. The coalescing lives in the store

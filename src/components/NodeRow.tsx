@@ -239,9 +239,8 @@ const styles = StyleSheet.create({
   },
   noteRow: { borderLeftColor: '#e5e7eb' },
   selected: {
-    outlineWidth: 2,
-    outlineColor: '#2563eb',
-    outlineStyle: 'solid',
+    boxShadow: '0px 2px 10px 0px rgba(0,0,0,0.25)',
+    zIndex: 1, // lift above neighbouring rows so the shadow isn't clipped
   } as any,
   dragging: { opacity: 0.4 },
   dropInside: { backgroundColor: '#dbeafe' },

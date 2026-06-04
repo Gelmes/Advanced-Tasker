@@ -77,8 +77,15 @@ logged; a burst that returns to the pre-burst status records nothing. From this 
 (never stored) `startedAt` (first active/done), `completedAt` (last transition into done,
 cleared by a reopen), and cycle/lead time — keyed off *kind*, so cycling among active
 statuses doesn't move the numbers. `Ctrl+Z` reverts a status change and its log entry
-together. Charts (burnup, classic burndown, cycle/lead-time) are a later pass that reads
-this data; classic burndown will add an optional per-epic due date.
+together.
+
+**Charts** (the 📊 toolbar button) open a modal scoped to the selected subtree (or the
+whole project): **Burnup** (scope vs done over time), **Burndown** (remaining vs an ideal
+line anchored to an optional per-node `dueDate`), and **Cycle time** (per-task bars +
+median/p85/avg). Burnup/burndown *replay* the status history per day, so a task counts as
+done on a day only if its latest transition as of that day was a done-kind — reopens are
+reflected over time. All series are derived in `model/analytics.ts` (pure + tested against
+the demo project) and drawn with `react-native-svg`.
 
 **`done` completion:** a task counts as complete when its status is of kind `done`.
 Completion % of a subtree = complete tasks / total tasks

@@ -49,8 +49,12 @@ The app is a tree of nodes rendered as an indented outline. Entry is `index.ts` 
     status of kind `done`, via an `isDone` predicate); **rollups are derived at render
     time, never stored**.
   - `lifecycle.ts` — derives `startedAt` / `completedAt` / cycle & lead time from a node's
-    `statusHistory`, keyed off status **kind** (`todo`/`active`/`done`). Basis for the
-    future burndown/cycle-time charts. Pure + tested.
+    `statusHistory`, keyed off status **kind** (`todo`/`active`/`done`). Pure + tested.
+  - `analytics.ts` — burnup/burndown time-series (which **replay** statusHistory per day so
+    reopens are handled over time) + cycle-time stats. Pure; tested against the demo
+    project. The charts UI lives in `src/components/charts/` (SVG via `react-native-svg`:
+    `ChartsModal`, `LineChart`, `CycleTimeChart`), opened from the 📊 toolbar button and
+    scoped to the selected subtree (or whole project).
   - `factory.ts`, `defaults.ts`, `ids.ts` — node/project construction, default statuses
     (each with a `kind`) and Fibonacci point scale, id generation.
 

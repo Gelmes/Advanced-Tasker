@@ -29,6 +29,8 @@ export interface TaskNode {
    * statuses leaves only the value you land on.
    */
   statusHistory: StatusEvent[];
+  /** Optional target date (YYYY-MM-DD) — drives the burndown ideal line. */
+  dueDate?: string | null;
   collapsed: boolean;
   createdAt: string;
   updatedAt: string;

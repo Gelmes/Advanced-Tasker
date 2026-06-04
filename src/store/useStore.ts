@@ -94,6 +94,7 @@ export interface AppState {
   /** Toggle wrapping the selected node's content in a markdown marker. */
   toggleEmphasisSelected: (marker: string) => void;
   setProjectName: (name: string) => void;
+  setDueDateFor: (id: string, dueDate: string | null) => void;
   moveNode: (dragId: string, targetId: string, where: DropWhere) => void;
   undo: () => void;
   redo: () => void;
@@ -408,6 +409,12 @@ export const useStore = create<AppState>((set, get) => {
         });
       }
     },
+
+    setDueDateFor: (id, dueDate) =>
+      apply((root) => {
+        const node = findNode(root, id);
+        if (node) node.dueDate = dueDate || null;
+      }, `due:${id}`),
 
     moveNode: (dragId, targetId, where) => {
       apply((root) => moveNodeRelative(root, dragId, targetId, where));

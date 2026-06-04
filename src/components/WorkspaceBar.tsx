@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useStore } from '../store/useStore';
+import { ChartsModal } from './charts/ChartsModal';
 import { ShortcutsHelp } from './ShortcutsHelp';
 import { StatusManager } from './StatusManager';
 
@@ -51,6 +52,7 @@ export function WorkspaceBar() {
   const redo = useStore((s) => s.redo);
 
   const [statusManagerOpen, setStatusManagerOpen] = useState(false);
+  const [chartsOpen, setChartsOpen] = useState(false);
 
   const status = saving
     ? 'Saving…'
@@ -74,6 +76,7 @@ export function WorkspaceBar() {
         <Button label="↶ Undo" onPress={undo} disabled={!canUndo} />
         <Button label="↷ Redo" onPress={redo} disabled={!canRedo} />
         <Button label="Statuses" onPress={() => setStatusManagerOpen(true)} />
+        <Button label="📊 Charts" onPress={() => setChartsOpen(true)} />
         <Button label="Details" onPress={toggleDetails} />
         <Button label="⌨ Shortcuts" onPress={() => setHelpOpen(true)} />
       </View>
@@ -82,6 +85,7 @@ export function WorkspaceBar() {
       </Text>
 
       <StatusManager visible={statusManagerOpen} onClose={() => setStatusManagerOpen(false)} />
+      <ChartsModal visible={chartsOpen} onClose={() => setChartsOpen(false)} />
       <ShortcutsHelp visible={helpOpen} onClose={() => setHelpOpen(false)} />
     </View>
   );

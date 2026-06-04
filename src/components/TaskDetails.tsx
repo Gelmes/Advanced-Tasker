@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useNow } from '../hooks/useNow';
 import {
   completedAt,
@@ -51,6 +51,7 @@ export function TaskDetails() {
   const open = useStore((s) => s.detailsOpen);
   const project = useStore((s) => s.project);
   const selectedId = useStore((s) => s.selectedId);
+  const setDueDateFor = useStore((s) => s.setDueDateFor);
   const nowMs = useNow();
 
   if (!open) return null;
@@ -96,6 +97,17 @@ export function TaskDetails() {
                 <Text style={styles.chipText}>{node.storyPoints} pt</Text>
               </View>
             )}
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>Due date</Text>
+            <TextInput
+              style={styles.dueInput}
+              value={node.dueDate ?? ''}
+              onChangeText={(v) => setDueDateFor(node.id, v)}
+              placeholder="YYYY-MM-DD"
+              autoCapitalize="none"
+            />
           </View>
 
           <View style={styles.section}>
@@ -185,6 +197,14 @@ const styles = StyleSheet.create({
   field: { flexDirection: 'row', justifyContent: 'space-between' },
   fieldLabel: { fontSize: 13, color: '#6b7280' },
   fieldValue: { fontSize: 13, color: '#111827', fontVariant: ['tabular-nums'] },
+  dueInput: {
+    fontSize: 13,
+    color: '#111827',
+    textAlign: 'right',
+    minWidth: 110,
+    padding: 0,
+    outlineWidth: 0,
+  } as any,
   histRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 2 },
   histStatus: { flex: 1, fontSize: 13, color: '#374151' },
   histAt: { fontSize: 12, color: '#9ca3af', fontVariant: ['tabular-nums'] },

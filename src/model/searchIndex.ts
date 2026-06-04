@@ -49,6 +49,46 @@ export function searchIndex(entries: IndexEntry[], query: string): IndexEntry[] 
   );
 }
 
+function escapeRe(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export interface HighlightSegment {
+  text: string;
+  hit: boolean;
+}
+
+/**
+ * Split `content` into segments marking the parts that matched `query`, so results
+ * can highlight the hit. `#tag` highlights exact tag occurrences (word-boundary);
+ * anything else highlights case-insensitive substring matches.
+ */
+export function highlightMatches(content: string, query: string): HighlightSegment[] {
+  const q = query.trim();
+  const plain: HighlightSegment[] = [{ text: content, hit: false }];
+  if (!q) return plain;
+
+  let re: RegExp;
+  if (q.startsWith('#')) {
+    const tag = q.slice(1);
+    if (!tag) return plain;
+    re = new RegExp(`(?<![\\w])#${escapeRe(tag)}(?![\\p{L}\\p{N}_-])`, 'giu');
+  } else {
+    re = new RegExp(escapeRe(q), 'gi');
+  }
+
+  const segs: HighlightSegment[] = [];
+  let last = 0;
+  for (const m of content.matchAll(re)) {
+    const i = m.index ?? 0;
+    if (i > last) segs.push({ text: content.slice(last, i), hit: false });
+    segs.push({ text: m[0], hit: true });
+    last = i + m[0].length;
+  }
+  if (last < content.length) segs.push({ text: content.slice(last), hit: false });
+  return segs.length ? segs : plain;
+}
+
 export interface TagCount {
   tag: string;
   count: number;

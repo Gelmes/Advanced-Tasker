@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { flattenForIndex, searchIndex, tagCountsFromEntries } from './searchIndex';
+import {
+  flattenForIndex,
+  highlightMatches,
+  searchIndex,
+  tagCountsFromEntries,
+} from './searchIndex';
 import type { TaskNode } from './types';
 
 function n(content: string, children: TaskNode[] = []): TaskNode {
@@ -50,6 +55,27 @@ describe('tagCountsFromEntries', () => {
     expect(tagCountsFromEntries(all)).toEqual([
       { tag: 'important', count: 2 },
       { tag: 'personal', count: 1 },
+    ]);
+  });
+});
+
+describe('highlightMatches', () => {
+  it('marks a case-insensitive substring hit', () => {
+    expect(highlightMatches('Fix the Bug now', 'bug')).toEqual([
+      { text: 'Fix the ', hit: false },
+      { text: 'Bug', hit: true },
+      { text: ' now', hit: false },
+    ]);
+  });
+
+  it('marks an exact tag, not a longer tag', () => {
+    const segs = highlightMatches('a #important and #importantly', '#important');
+    expect(segs.filter((s) => s.hit).map((s) => s.text)).toEqual(['#important']);
+  });
+
+  it('returns the whole string unmarked when nothing matches', () => {
+    expect(highlightMatches('nothing here', 'xyz')).toEqual([
+      { text: 'nothing here', hit: false },
     ]);
   });
 });

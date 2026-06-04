@@ -1,6 +1,11 @@
 import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { flattenForIndex, searchIndex, tagCountsFromEntries } from '../model/searchIndex';
+import {
+  flattenForIndex,
+  highlightMatches,
+  searchIndex,
+  tagCountsFromEntries,
+} from '../model/searchIndex';
 import { useStore } from '../store/useStore';
 
 // Left slideout: remembered workspace folders (switch / forget), and a tabbed
@@ -165,7 +170,15 @@ export function ProjectSidebar() {
                     style={({ pressed }) => [styles.result, pressed && styles.itemPressed]}
                   >
                     <Text style={styles.resultText} numberOfLines={1}>
-                      {m.content || 'Untitled'}
+                      {highlightMatches(m.content || 'Untitled', tagQuery).map((s, i) =>
+                        s.hit ? (
+                          <Text key={i} style={styles.hit}>
+                            {s.text}
+                          </Text>
+                        ) : (
+                          <Text key={i}>{s.text}</Text>
+                        ),
+                      )}
                     </Text>
                     {sub ? (
                       <Text style={styles.resultCrumb} numberOfLines={1}>
@@ -261,6 +274,7 @@ const styles = StyleSheet.create({
   chipCount: { color: '#a78bfa', fontVariant: ['tabular-nums'] },
   result: { paddingHorizontal: 12, paddingVertical: 6 },
   resultText: { fontSize: 13, color: '#374151' },
+  hit: { backgroundColor: '#fde68a', color: '#111827', fontWeight: '600' },
   resultCrumb: { fontSize: 11, color: '#9ca3af', marginTop: 1 },
   footer: { padding: 8, borderTopWidth: 1, borderTopColor: '#e5e7eb' },
   action: {

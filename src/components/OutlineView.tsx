@@ -38,7 +38,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {
-    paddingVertical: 8,
+    // No top padding — keep the first row flush under the tab bar. (Using
+    // paddingVertical here would share an atomic class with the toolbar/sidebar.)
+    paddingTop: 0,
+    paddingBottom: 8,
   },
   empty: {
     padding: 16,

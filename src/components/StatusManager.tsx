@@ -1,8 +1,19 @@
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import type { StatusKind } from '../model/types';
 import { useStore } from '../store/useStore';
 
-// Configure the project's status set (SPEC.md §2). Colors are edited as hex
-// strings with a live swatch; deleting a status demotes any tasks using it.
+// Configure the project's status set (SPEC.md §2, §6). Colors are edited as hex
+// strings with a live swatch; each status has a kind (To-do / Active / Done) that
+// drives the lifecycle analytics. Deleting a status demotes any tasks using it.
+
+const KIND_CYCLE: StatusKind[] = ['todo', 'active', 'done'];
+const KIND_LABEL: Record<StatusKind, string> = {
+  todo: 'To-do',
+  active: 'Active',
+  done: 'Done',
+};
+const nextKind = (k: StatusKind): StatusKind =>
+  KIND_CYCLE[(KIND_CYCLE.indexOf(k) + 1) % KIND_CYCLE.length];
 
 interface Props {
   visible: boolean;
@@ -43,6 +54,12 @@ export function StatusManager({ visible, onClose }: Props) {
                   placeholder="#rrggbb"
                   autoCapitalize="none"
                 />
+                <Pressable
+                  style={[styles.field, styles.kind]}
+                  onPress={() => updateStatus(s.id, { kind: nextKind(s.kind) })}
+                >
+                  <Text style={styles.kindText}>{KIND_LABEL[s.kind]}</Text>
+                </Pressable>
                 <Pressable onPress={() => removeStatus(s.id)} hitSlop={6}>
                   <Text style={styles.delete}>Delete</Text>
                 </Pressable>
@@ -102,6 +119,8 @@ const styles = StyleSheet.create({
   } as any,
   label: { flex: 1 },
   color: { width: 96, fontVariant: ['tabular-nums'] },
+  kind: { width: 72, alignItems: 'center', backgroundColor: '#f9fafb' },
+  kindText: { fontSize: 12, color: '#374151' },
   delete: { fontSize: 12, color: '#b91c1c' },
   add: {
     marginTop: 12,

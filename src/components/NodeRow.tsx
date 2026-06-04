@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 import { useDrag } from './DragContext';
 import { InlineMarkdown } from '../markdown/InlineMarkdown';
-import { DONE_STATUS_ID } from '../model/defaults';
 import { completion, computeRollup } from '../model/rollups';
 import { elapsedSeconds, formatDuration, isRunning } from '../model/time';
 import type { StatusDef, TaskNode } from '../model/types';
@@ -28,6 +27,8 @@ interface Props {
   node: TaskNode;
   depth: number;
   statuses: StatusDef[];
+  /** Ids of statuses of kind 'done', for completion roll-ups. */
+  doneStatusIds: Set<string>;
   /** Wall-clock ms, supplied once from the top so timers tick in sync. */
   nowMs: number;
 }
@@ -37,7 +38,7 @@ interface Props {
  * timer, and points chip are independent click targets (SPEC.md §3–4). Parent
  * rows also show a live roll-up of their subtree (time / points / completion %).
  */
-export function NodeRow({ node, depth, statuses, nowMs }: Props) {
+export function NodeRow({ node, depth, statuses, doneStatusIds, nowMs }: Props) {
   const selectedId = useStore((s) => s.selectedId);
   const mode = useStore((s) => s.mode);
   const select = useStore((s) => s.select);
@@ -79,7 +80,7 @@ export function NodeRow({ node, depth, statuses, nowMs }: Props) {
   const dropHere = indicator?.targetId === node.id ? indicator.where : null;
 
   const rollup = hasChildren
-    ? computeRollup(node, DONE_STATUS_ID, nowMs)
+    ? computeRollup(node, (id) => doneStatusIds.has(id), nowMs)
     : null;
   const pct = rollup ? completion(rollup) : null;
 
@@ -215,6 +216,7 @@ export function NodeRow({ node, depth, statuses, nowMs }: Props) {
             node={child}
             depth={depth + 1}
             statuses={statuses}
+            doneStatusIds={doneStatusIds}
             nowMs={nowMs}
           />
         ))}

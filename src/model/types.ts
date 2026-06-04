@@ -8,6 +8,12 @@ export interface TimeTracking {
   startedAt: string | null;
 }
 
+/** A settled status transition (SPEC.md §6). `status` is a status id. */
+export interface StatusEvent {
+  at: string; // ISO timestamp
+  status: string;
+}
+
 export interface TaskNode {
   id: string;
   /** Raw markdown; rendered in the UI when the row is not being edited. */
@@ -17,16 +23,26 @@ export interface TaskNode {
   /** Must be a member of the project's pointScale, or null. */
   storyPoints: number | null;
   time: TimeTracking;
+  /**
+   * Append-only log of settled status transitions, used to derive lifecycle
+   * timestamps (started/done) for analytics. Coalesced so rapid cycling between
+   * statuses leaves only the value you land on.
+   */
+  statusHistory: StatusEvent[];
   collapsed: boolean;
   createdAt: string;
   updatedAt: string;
   children: TaskNode[];
 }
 
+/** Lifecycle category of a status, driving analytics (SPEC.md §6). */
+export type StatusKind = 'todo' | 'active' | 'done';
+
 export interface StatusDef {
   id: string;
   label: string;
   color: string;
+  kind: StatusKind;
 }
 
 export interface ProjectFile {

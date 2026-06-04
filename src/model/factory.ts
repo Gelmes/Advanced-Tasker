@@ -19,6 +19,7 @@ export function createNode(content = ''): TaskNode {
     status: null,
     storyPoints: null,
     time: { accumulatedSeconds: 0, startedAt: null },
+    statusHistory: [],
     collapsed: false,
     createdAt: ts,
     updatedAt: ts,

@@ -10,25 +10,26 @@ export interface Rollup {
   points: number;
   /** Nodes with a status (notes excluded). */
   taskCount: number;
-  /** Tasks whose status id equals the terminal/"done" status. */
+  /** Tasks whose status is of kind 'done'. */
   doneCount: number;
 }
 
 const EMPTY: Rollup = { seconds: 0, points: 0, taskCount: 0, doneCount: 0 };
 
+/** `isDone` tells whether a status id counts as completed (kind === 'done'). */
 export function computeRollup(
   node: TaskNode,
-  doneStatusId: string,
+  isDone: (statusId: string) => boolean,
   nowMs: number,
 ): Rollup {
   let acc: Rollup = {
     seconds: elapsedSeconds(node, nowMs),
     points: node.storyPoints ?? 0,
     taskCount: node.status ? 1 : 0,
-    doneCount: node.status === doneStatusId ? 1 : 0,
+    doneCount: node.status && isDone(node.status) ? 1 : 0,
   };
   for (const child of node.children) {
-    const r = computeRollup(child, doneStatusId, nowMs);
+    const r = computeRollup(child, isDone, nowMs);
     acc = {
       seconds: acc.seconds + r.seconds,
       points: acc.points + r.points,

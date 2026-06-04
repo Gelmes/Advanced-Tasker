@@ -45,10 +45,20 @@ The app is a tree of nodes rendered as an indented outline. Entry is `index.ts` 
     helpers. **All tree mutations go through here.**
   - `time.ts` — timer math (`elapsedSeconds`, `bankTime`); elapsed = banked seconds +
     live run since `startedAt`, so it survives restarts.
-  - `rollups.ts` — `computeRollup` sums time/points/completion over a subtree; **rollups
-    are derived at render time, never stored**.
+  - `rollups.ts` — `computeRollup` sums time/points/completion over a subtree (done =
+    status of kind `done`, via an `isDone` predicate); **rollups are derived at render
+    time, never stored**.
+  - `lifecycle.ts` — derives `startedAt` / `completedAt` / cycle & lead time from a node's
+    `statusHistory`, keyed off status **kind** (`todo`/`active`/`done`). Basis for the
+    future burndown/cycle-time charts. Pure + tested.
   - `factory.ts`, `defaults.ts`, `ids.ts` — node/project construction, default statuses
-    (`todo/doing/blocked/done`) and Fibonacci point scale, id generation.
+    (each with a `kind`) and Fibonacci point scale, id generation.
+
+  **Status-history capture:** statuses carry a `kind`; each node has an append-only
+  `statusHistory` of *settled* transitions. The coalescing lives in the store
+  (`recordStatusChange`/`applyStatusChange`): rapid cycling within ~3s replaces the
+  in-burst entry, and a burst returning to the pre-burst status records nothing.
+  Legacy files are migrated in `parseProject` (backfill `kind` + `statusHistory`).
 
 - **`src/store/useStore.ts` — the single Zustand store and the only mutation entry point.**
   Actions clone the project (`cloneProject` → `structuredClone`), apply a pure op from

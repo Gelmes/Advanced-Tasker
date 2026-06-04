@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNow } from '../hooks/useNow';
 import { useStore } from '../store/useStore';
@@ -7,6 +8,11 @@ import { NodeRow } from './NodeRow';
 export function OutlineView() {
   const project = useStore((s) => s.project);
   const nowMs = useNow();
+
+  const doneStatusIds = useMemo(
+    () => new Set(project.statuses.filter((s) => s.kind === 'done').map((s) => s.id)),
+    [project.statuses],
+  );
 
   return (
     <View style={styles.container}>
@@ -20,6 +26,7 @@ export function OutlineView() {
               node={node}
               depth={0}
               statuses={project.statuses}
+              doneStatusIds={doneStatusIds}
               nowMs={nowMs}
             />
           ))

@@ -8,7 +8,36 @@ import {
   DEFAULT_STATUSES,
   FILE_VERSION,
 } from '../model/defaults';
-import type { ProjectFile, TaskNode } from '../model/types';
+import type { ProjectFile, StatusDef, StatusKind, TaskNode } from '../model/types';
+
+/** Infer a status kind for legacy files that predate the `kind` field. */
+function inferKind(raw: any): StatusKind {
+  if (raw?.kind === 'todo' || raw?.kind === 'active' || raw?.kind === 'done') return raw.kind;
+  const id = String(raw?.id ?? '').toLowerCase();
+  if (id === 'done') return 'done';
+  if (id === 'todo' || id === 'backlog') return 'todo';
+  return 'active';
+}
+
+function migrateStatuses(raw: any): StatusDef[] {
+  if (!Array.isArray(raw)) return DEFAULT_STATUSES.map((s) => ({ ...s }));
+  return raw.map((s: any) => ({
+    id: String(s.id),
+    label: String(s.label ?? s.id),
+    color: String(s.color ?? '#888888'),
+    kind: inferKind(s),
+  }));
+}
+
+/** Ensure every node has a statusHistory array (legacy files lack it). */
+function migrateNodes(nodes: any[]): TaskNode[] {
+  for (const n of nodes) {
+    if (!Array.isArray(n.statusHistory)) n.statusHistory = [];
+    if (Array.isArray(n.children)) migrateNodes(n.children);
+    else n.children = [];
+  }
+  return nodes as TaskNode[];
+}
 
 /** Opaque handle to the on-disk file; kept in the store for auto-save. */
 export type FileRef = any; // FileSystemFileHandle (not in RN typings)
@@ -50,11 +79,11 @@ export function parseProject(text: string): ProjectFile {
   return {
     version: typeof raw.version === 'number' ? raw.version : FILE_VERSION,
     name: typeof raw.name === 'string' ? raw.name : 'Untitled',
-    statuses: Array.isArray(raw.statuses) ? raw.statuses : DEFAULT_STATUSES.map((s) => ({ ...s })),
+    statuses: migrateStatuses(raw.statuses),
     pointScale: Array.isArray(raw.pointScale) ? raw.pointScale : [...DEFAULT_POINT_SCALE],
     activeTimerNodeId:
       typeof raw.activeTimerNodeId === 'string' ? raw.activeTimerNodeId : null,
-    root: { children: (raw.root.children as TaskNode[]) ?? [] },
+    root: { children: migrateNodes(raw.root.children ?? []) },
   };
 }
 

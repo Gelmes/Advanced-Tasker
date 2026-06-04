@@ -47,3 +47,30 @@ describe('undo / redo', () => {
     expect(get().project.root.children).toHaveLength(0);
   });
 });
+
+describe('status history capture', () => {
+  it('coalesces rapid status changes into the landed value', () => {
+    get().newSibling();
+    const id = get().selectedId!;
+    // Rapid cycling within the settle window (tests run fast).
+    get().setStatusFor(id, 'doing');
+    get().setStatusFor(id, 'blocked');
+    get().setStatusFor(id, 'done');
+
+    const hist = firstChild().statusHistory;
+    expect(hist).toHaveLength(1);
+    expect(hist[0].status).toBe('done');
+  });
+
+  it('records nothing when a burst lands back on the starting status', () => {
+    get().newSibling();
+    const id = get().selectedId!;
+    // null (note) -> doing -> ... -> back to null
+    get().setStatusFor(id, 'doing');
+    get().setStatusFor(id, 'blocked');
+    get().setStatusFor(id, null);
+
+    expect(firstChild().statusHistory).toHaveLength(0);
+    expect(firstChild().status).toBeNull();
+  });
+});

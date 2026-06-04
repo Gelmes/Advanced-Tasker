@@ -21,6 +21,7 @@ import {
   type DropWhere,
 } from '../model/tree';
 import { newId } from '../model/ids';
+import { DEFAULT_STATUS_KIND } from '../model/defaults';
 import { toggleWrap } from '../markdown/inline';
 import { bankTime } from '../model/time';
 import type { StatusDef } from '../model/types';
@@ -187,6 +188,51 @@ export const useStore = create<AppState>((set, get) => {
     histTag = null;
     histAt = 0;
     set({ past: [], future: [] });
+  };
+
+  // --- Status-history capture (SPEC.md §6) ------------------------------------
+  // Records settled status transitions for analytics. Rapid changes within the
+  // settle window coalesce (the in-burst entry is replaced), and a burst that
+  // lands back on the pre-burst status leaves nothing behind (no-op collapse).
+  const STATUS_SETTLE_MS = 3000;
+  let stNode: string | null = null;
+  let stAt = 0;
+  let stPrev: string | null = null;
+  let stPushed = false;
+
+  const recordStatusChange = (
+    node: ProjectFile['root']['children'][number],
+    before: string | null,
+    newStatus: string | null,
+  ) => {
+    if (!node.statusHistory) node.statusHistory = [];
+    const now = Date.now();
+    const inBurst = stNode === node.id && now - stAt < STATUS_SETTLE_MS;
+    stAt = now;
+    stNode = node.id;
+    if (!inBurst) {
+      stPrev = before; // status before this burst started
+      stPushed = false;
+    }
+    if (stPushed) {
+      node.statusHistory.pop(); // drop the previous in-burst entry; re-decide below
+      stPushed = false;
+    }
+    if (newStatus != null && newStatus !== stPrev) {
+      node.statusHistory.push({ at: new Date(now).toISOString(), status: newStatus });
+      stPushed = true;
+    }
+  };
+
+  /** Apply a status change to a node and log the (settled) transition. */
+  const applyStatusChange = (id: string, newStatus: string | null) => {
+    apply((root) => {
+      const node = findNode(root, id);
+      if (!node) return;
+      const before = node.status;
+      setStatus(root, id, newStatus);
+      recordStatusChange(node, before, newStatus);
+    });
   };
 
   /** Persist the workspace pointer (folder + last-open project) for reopen. */
@@ -374,7 +420,7 @@ export const useStore = create<AppState>((set, get) => {
         project.statuses.map((s) => s.id),
         dir,
       );
-      apply((root) => setStatus(root, id, next));
+      applyStatusChange(id, next);
     },
 
     cycleStatusSelected: (dir = 1) => {
@@ -382,7 +428,7 @@ export const useStore = create<AppState>((set, get) => {
       if (selectedId) get().cycleStatusFor(selectedId, dir);
     },
 
-    setStatusFor: (id, status) => apply((root) => setStatus(root, id, status)),
+    setStatusFor: (id, status) => applyStatusChange(id, status),
 
     cyclePointsFor: (id, dir = 1) => {
       const { project } = get();
@@ -430,6 +476,7 @@ export const useStore = create<AppState>((set, get) => {
           id: newId(),
           label: 'New status',
           color: '#a855f7',
+          kind: DEFAULT_STATUS_KIND,
         });
       }),
 

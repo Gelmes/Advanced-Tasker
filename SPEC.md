@@ -34,11 +34,11 @@ time from the subtree — never stored**.
 {
   "version": 1,
   "name": "My Project",
-  "statuses": [                       // fully user-configurable
-    { "id": "todo",    "label": "To Do",   "color": "#888888" },
-    { "id": "doing",   "label": "Doing",   "color": "#3b82f6" },
-    { "id": "blocked", "label": "Blocked", "color": "#ef4444" },
-    { "id": "done",    "label": "Done",    "color": "#22c55e" }
+  "statuses": [                       // fully user-configurable; kind drives analytics
+    { "id": "todo",    "label": "To Do",   "color": "#888888", "kind": "todo" },
+    { "id": "doing",   "label": "Doing",   "color": "#3b82f6", "kind": "active" },
+    { "id": "blocked", "label": "Blocked", "color": "#ef4444", "kind": "active" },
+    { "id": "done",    "label": "Done",    "color": "#22c55e", "kind": "done" }
   ],
   "pointScale": [1, 2, 3, 5, 8, 13],  // Fibonacci; the allowed set
   "activeTimerNodeId": null,          // at most ONE timer runs at a time
@@ -53,6 +53,7 @@ time from the subtree — never stored**.
           "accumulatedSeconds": 0,    // banked time
           "startedAt": null           // ISO timestamp while running, else null
         },
+        "statusHistory": [],          // settled status transitions [{at, status}]
         "collapsed": false,
         "createdAt": "2026-01-01T00:00:00.000Z",
         "updatedAt": "2026-01-01T00:00:00.000Z",
@@ -68,8 +69,19 @@ Storing `startedAt` as a timestamp means elapsed time stays correct across app
 restarts. Starting a timer on a node sets `activeTimerNodeId` and stops any other
 running timer (banking its elapsed into `accumulatedSeconds`).
 
-**`done` completion:** a task counts as complete when its status id is `done` (the
-status flagged as terminal). Completion % of a subtree = complete tasks / total tasks
+**Status kinds & analytics capture (the basis for burndown/cycle-time):** every status
+has a `kind` of `todo` / `active` / `done` (Blocked folds under `active`). Each node keeps
+an append-only `statusHistory` of *settled* transitions: a status change is held briefly
+(~3s) and rapid cycling replaces the in-burst entry, so only the value you land on is
+logged; a burst that returns to the pre-burst status records nothing. From this we derive
+(never stored) `startedAt` (first active/done), `completedAt` (last transition into done,
+cleared by a reopen), and cycle/lead time — keyed off *kind*, so cycling among active
+statuses doesn't move the numbers. `Ctrl+Z` reverts a status change and its log entry
+together. Charts (burnup, classic burndown, cycle/lead-time) are a later pass that reads
+this data; classic burndown will add an optional per-epic due date.
+
+**`done` completion:** a task counts as complete when its status is of kind `done`.
+Completion % of a subtree = complete tasks / total tasks
 in the subtree (notes excluded).
 
 ## 3. Interaction model — modal

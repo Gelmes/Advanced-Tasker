@@ -9,6 +9,7 @@ function node(partial: Partial<TaskNode> & { id: string }): TaskNode {
     status: null,
     storyPoints: null,
     time: { accumulatedSeconds: 0, startedAt: null },
+    statusHistory: [],
     collapsed: false,
     createdAt: '',
     updatedAt: '',
@@ -69,13 +70,13 @@ describe('computeRollup', () => {
   });
 
   it('sums time and points over the subtree (self included)', () => {
-    const r = computeRollup(tree, 'done', T0);
+    const r = computeRollup(tree, (id) => id === 'done', T0);
     expect(r.seconds).toBe(180);
     expect(r.points).toBe(5);
   });
 
   it('counts only tasks for completion, excluding notes', () => {
-    const r = computeRollup(tree, 'done', T0);
+    const r = computeRollup(tree, (id) => id === 'done', T0);
     expect(r.taskCount).toBe(3); // root, c1, c2 — the note is excluded
     expect(r.doneCount).toBe(1);
     expect(completion(r)).toBeCloseTo(1 / 3);
@@ -83,6 +84,6 @@ describe('computeRollup', () => {
 
   it('returns null completion when there are no tasks', () => {
     const notesOnly = node({ id: 'n', children: [node({ id: 'n2' })] });
-    expect(completion(computeRollup(notesOnly, 'done', T0))).toBeNull();
+    expect(completion(computeRollup(notesOnly, (id) => id === 'done', T0))).toBeNull();
   });
 });

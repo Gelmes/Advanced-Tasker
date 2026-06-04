@@ -46,6 +46,8 @@ export function NodeRow({ node, depth, statuses, nowMs }: Props) {
   const setNodeContent = useStore((s) => s.setNodeContent);
   const newSibling = useStore((s) => s.newSibling);
   const backspaceEmpty = useStore((s) => s.backspaceEmpty);
+  const indentSelected = useStore((s) => s.indentSelected);
+  const outdentSelected = useStore((s) => s.outdentSelected);
   const toggleCollapseFor = useStore((s) => s.toggleCollapseFor);
   const cycleStatusFor = useStore((s) => s.cycleStatusFor);
   const cyclePointsFor = useStore((s) => s.cyclePointsFor);
@@ -103,6 +105,11 @@ export function NodeRow({ node, depth, statuses, nowMs }: Props) {
     if (key === 'Enter' && !e.nativeEvent.shiftKey) {
       e.preventDefault?.();
       newSibling();
+    } else if (key === 'Tab') {
+      // Indent/outdent the node instead of moving focus to the next control.
+      e.preventDefault?.();
+      if (e.nativeEvent.shiftKey) outdentSelected();
+      else indentSelected();
     } else if (key === 'Escape') {
       e.preventDefault?.();
       setMode('selected');

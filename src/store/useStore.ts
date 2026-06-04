@@ -73,6 +73,7 @@ export interface AppState {
   openTabs: string[];
   sidebarOpen: boolean;
   helpOpen: boolean;
+  detailsOpen: boolean;
 
   // Selection / mode
   select: (id: string | null) => void;
@@ -122,6 +123,7 @@ export interface AppState {
   saveProjectAs: () => Promise<void>;
 
   setHelpOpen: (open: boolean) => void;
+  toggleDetails: () => void;
 
   // Workspace (folder) actions
   toggleSidebar: () => void;
@@ -266,6 +268,7 @@ export const useStore = create<AppState>((set, get) => {
     openTabs: [],
     sidebarOpen: false,
     helpOpen: false,
+    detailsOpen: false,
 
     select: (id) => set({ selectedId: id }),
     setMode: (mode) => set({ mode }),
@@ -570,6 +573,7 @@ export const useStore = create<AppState>((set, get) => {
     },
 
     setHelpOpen: (open) => set({ helpOpen: open }),
+    toggleDetails: () => set({ detailsOpen: !get().detailsOpen }),
 
     toggleSidebar: () => set({ sidebarOpen: !get().sidebarOpen }),
 

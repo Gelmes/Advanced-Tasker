@@ -102,6 +102,9 @@ export function useKeyboardNav(): void {
         case 'e':
         case 'F2':
           return consume(), s.editSelected();
+        case 'i':
+        case 'I':
+          return consume(), s.toggleDetails();
         default:
           return;
       }

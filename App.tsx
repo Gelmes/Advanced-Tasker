@@ -4,6 +4,7 @@ import { SafeAreaView, StyleSheet, View } from 'react-native';
 import { OutlineView } from './src/components/OutlineView';
 import { ProjectSidebar } from './src/components/ProjectSidebar';
 import { TabBar } from './src/components/TabBar';
+import { TaskDetails } from './src/components/TaskDetails';
 import { WorkspaceBar } from './src/components/WorkspaceBar';
 import { DragProvider } from './src/components/DragContext';
 import { useAutosave } from './src/hooks/useAutosave';
@@ -30,6 +31,7 @@ export default function App() {
             <OutlineView />
           </View>
         </DragProvider>
+        <TaskDetails />
       </View>
       <StatusBar style="auto" />
     </SafeAreaView>

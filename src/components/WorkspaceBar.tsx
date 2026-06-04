@@ -44,6 +44,7 @@ export function WorkspaceBar() {
   const saveProjectAs = useStore((s) => s.saveProjectAs);
   const helpOpen = useStore((s) => s.helpOpen);
   const setHelpOpen = useStore((s) => s.setHelpOpen);
+  const toggleDetails = useStore((s) => s.toggleDetails);
   const canUndo = useStore((s) => s.past.length > 0);
   const canRedo = useStore((s) => s.future.length > 0);
   const undo = useStore((s) => s.undo);
@@ -73,6 +74,7 @@ export function WorkspaceBar() {
         <Button label="↶ Undo" onPress={undo} disabled={!canUndo} />
         <Button label="↷ Redo" onPress={redo} disabled={!canRedo} />
         <Button label="Statuses" onPress={() => setStatusManagerOpen(true)} />
+        <Button label="Details" onPress={toggleDetails} />
         <Button label="⌨ Shortcuts" onPress={() => setHelpOpen(true)} />
       </View>
       <Text style={[styles.status, error && styles.statusError]} numberOfLines={1}>

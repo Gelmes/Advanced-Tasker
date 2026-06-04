@@ -20,6 +20,7 @@ const SECTIONS: Section[] = [
       ['S / Shift+S', 'Cycle status fwd / back (promotes note → task)'],
       ['P / Shift+P', 'Cycle story points fwd / back'],
       ['E / F2', 'Edit the selected row'],
+      ['I', 'Toggle the details panel'],
       ['Delete / Backspace', 'Delete node'],
     ],
   },

@@ -1,16 +1,20 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useStore } from '../store/useStore';
 
-// Left slideout listing the projects (.json files) in the open workspace folder.
-// Click to focus a project; create new ones in the folder. Hidden until toggled.
+// Left slideout: remembered workspace folders (switch / forget) and the projects
+// (.json files) in the current folder. Hidden until toggled.
 
 export function ProjectSidebar() {
   const open = useStore((s) => s.sidebarOpen);
+  const folders = useStore((s) => s.folders);
+  const currentFolderId = useStore((s) => s.currentFolderId);
   const workspaceName = useStore((s) => s.workspaceName);
   const projects = useStore((s) => s.projects);
   const activeFile = useStore((s) => s.fileName);
 
   const openFolder = useStore((s) => s.openFolder);
+  const switchFolder = useStore((s) => s.switchFolder);
+  const forgetFolder = useStore((s) => s.forgetFolder);
   const switchProject = useStore((s) => s.switchProject);
   const newProjectInFolder = useStore((s) => s.newProjectInFolder);
 
@@ -18,17 +22,50 @@ export function ProjectSidebar() {
 
   return (
     <View style={styles.sidebar}>
-      <View style={styles.header}>
-        <Text style={styles.workspace} numberOfLines={1}>
-          {workspaceName ?? 'No folder'}
-        </Text>
-      </View>
+      <ScrollView style={styles.scroll}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Folders</Text>
+          <Pressable onPress={() => void openFolder()} hitSlop={6}>
+            <Text style={styles.add}>+ Open</Text>
+          </Pressable>
+        </View>
 
-      <ScrollView style={styles.list}>
-        {projects.length === 0 ? (
-          <Text style={styles.empty}>
-            {workspaceName ? 'No projects yet.' : 'Open a folder to see its projects.'}
+        {folders.length === 0 ? (
+          <Text style={styles.empty}>No folders yet.</Text>
+        ) : (
+          folders.map((f) => {
+            const isCurrent = f.id === currentFolderId;
+            return (
+              <View key={f.id} style={[styles.folderRow, isCurrent && styles.itemActive]}>
+                <Pressable style={styles.folderPress} onPress={() => void switchFolder(f.id)}>
+                  <Text style={styles.folderIcon}>{isCurrent ? '📂' : '📁'}</Text>
+                  <Text
+                    style={[styles.itemText, isCurrent && styles.itemTextActive]}
+                    numberOfLines={1}
+                  >
+                    {f.name}
+                  </Text>
+                </Pressable>
+                <Pressable onPress={() => void forgetFolder(f.id)} hitSlop={6}>
+                  <Text style={styles.remove}>✕</Text>
+                </Pressable>
+              </View>
+            );
+          })
+        )}
+
+        <View style={styles.divider} />
+
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle} numberOfLines={1}>
+            {workspaceName ? `Projects · ${workspaceName}` : 'Projects'}
           </Text>
+        </View>
+
+        {!workspaceName ? (
+          <Text style={styles.empty}>Open a folder to see its projects.</Text>
+        ) : projects.length === 0 ? (
+          <Text style={styles.empty}>No projects yet.</Text>
         ) : (
           projects.map((p) => {
             const isActive = p.fileName === activeFile;
@@ -51,17 +88,13 @@ export function ProjectSidebar() {
         )}
       </ScrollView>
 
-      <View style={styles.footer}>
-        {workspaceName ? (
+      {workspaceName && (
+        <View style={styles.footer}>
           <Pressable style={styles.action} onPress={() => void newProjectInFolder()}>
             <Text style={styles.actionText}>+ New project</Text>
           </Pressable>
-        ) : (
-          <Pressable style={styles.action} onPress={() => void openFolder()}>
-            <Text style={styles.actionText}>Open folder…</Text>
-          </Pressable>
-        )}
-      </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -73,25 +106,41 @@ const styles = StyleSheet.create({
     borderRightWidth: 1,
     borderRightColor: '#e5e7eb',
   },
-  header: {
+  scroll: { flex: 1 },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 12,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    paddingTop: 12,
+    paddingBottom: 6,
   },
-  workspace: { fontSize: 13, fontWeight: '600', color: '#374151' },
-  list: { flex: 1 },
-  empty: { padding: 12, fontSize: 12, color: '#9ca3af' },
+  sectionTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#9ca3af',
+    textTransform: 'uppercase',
+    flexShrink: 1,
+  },
+  add: { fontSize: 12, color: '#3730a3' },
+  empty: { paddingHorizontal: 12, paddingVertical: 4, fontSize: 12, color: '#9ca3af' },
+  folderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    gap: 6,
+  },
+  folderPress: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  folderIcon: { fontSize: 13 },
+  remove: { fontSize: 11, color: '#9ca3af' },
+  divider: { height: 1, backgroundColor: '#e5e7eb', marginVertical: 6 },
   item: { paddingHorizontal: 12, paddingVertical: 8 },
   itemActive: { backgroundColor: '#e0e7ff' },
   itemPressed: { backgroundColor: '#e5e7eb' },
-  itemText: { fontSize: 13, color: '#374151' },
+  itemText: { fontSize: 13, color: '#374151', flexShrink: 1 },
   itemTextActive: { color: '#3730a3', fontWeight: '600' },
-  footer: {
-    padding: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-  },
+  footer: { padding: 8, borderTopWidth: 1, borderTopColor: '#e5e7eb' },
   action: {
     paddingHorizontal: 10,
     paddingVertical: 7,

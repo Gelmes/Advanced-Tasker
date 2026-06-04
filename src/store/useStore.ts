@@ -40,9 +40,14 @@ import {
   type ProjectRef,
 } from '../persistence/directory';
 import {
-  getWorkspace,
+  ensurePermission,
+  findFolderByHandle,
+  getFolder,
   hasPermission,
-  putWorkspace,
+  listFolders,
+  putFolder,
+  removeFolder,
+  type FolderEntry,
 } from '../persistence/handleStore';
 
 // Global app state: the project tree, transient UI state (selection + mode), and
@@ -68,6 +73,9 @@ export interface AppState {
   // Workspace: a folder of .json projects (SPEC.md §5)
   workspaceDir: FileRef | null;
   workspaceName: string | null;
+  /** Remembered folders for the sidebar switcher. */
+  folders: FolderEntry[];
+  currentFolderId: string | null;
   projects: ProjectRef[];
   /** File names of projects open as tabs, in tab order. */
   openTabs: string[];
@@ -129,6 +137,9 @@ export interface AppState {
   // Workspace (folder) actions
   toggleSidebar: () => void;
   openFolder: () => Promise<void>;
+  refreshFolders: () => Promise<void>;
+  switchFolder: (id: string) => Promise<void>;
+  forgetFolder: (id: string) => Promise<void>;
   refreshProjects: () => Promise<void>;
   switchProject: (fileName: string) => Promise<void>;
   newProjectInFolder: () => Promise<void>;
@@ -238,10 +249,34 @@ export const useStore = create<AppState>((set, get) => {
     });
   };
 
-  /** Persist the workspace pointer (folder + last-open project) for reopen. */
-  const persistWorkspace = async () => {
-    const { workspaceDir, fileName } = get();
-    if (workspaceDir) await putWorkspace(workspaceDir, fileName);
+  /** Update the current folder's entry (last-active project + recency) for reopen. */
+  const persistCurrentFolder = async () => {
+    const { currentFolderId, workspaceDir, workspaceName, fileName } = get();
+    if (!currentFolderId || !workspaceDir) return;
+    await putFolder({
+      id: currentFolderId,
+      name: workspaceName ?? 'Workspace',
+      dirHandle: workspaceDir,
+      lastActive: fileName,
+      lastOpened: Date.now(),
+    });
+    await get().refreshFolders();
+  };
+
+  /** Load a folder's projects and focus its last-active (or first) project. */
+  const enterFolder = async (entry: FolderEntry) => {
+    const projects = await listProjects(entry.dirHandle);
+    set({
+      workspaceDir: entry.dirHandle,
+      workspaceName: entry.name,
+      currentFolderId: entry.id,
+      projects,
+      sidebarOpen: true,
+      error: null,
+    });
+    const target = projects.find((p) => p.fileName === entry.lastActive) ?? projects[0];
+    if (target) await get().switchProject(target.fileName);
+    else await persistCurrentFolder();
   };
 
   /** Save the current project first if it has unsaved changes and a bound file. */
@@ -265,6 +300,8 @@ export const useStore = create<AppState>((set, get) => {
 
     workspaceDir: null,
     workspaceName: null,
+    folders: [],
+    currentFolderId: null,
     projects: [],
     openTabs: [],
     sidebarOpen: false,
@@ -588,19 +625,49 @@ export const useStore = create<AppState>((set, get) => {
       try {
         await saveIfDirty();
         const dir = await pickDirectory();
-        const projects = await listProjects(dir);
-        set({
-          workspaceDir: dir,
-          workspaceName: dir.name ?? 'Workspace',
-          projects,
-          sidebarOpen: true,
-          error: null,
-        });
-        await putWorkspace(dir, null);
-        if (projects.length) await get().switchProject(projects[0].fileName);
+        const existing = await findFolderByHandle(dir);
+        const entry: FolderEntry = {
+          id: existing?.id ?? newId(),
+          name: dir.name ?? 'Workspace',
+          dirHandle: dir,
+          lastActive: existing?.lastActive ?? null,
+          lastOpened: Date.now(),
+        };
+        await putFolder(entry);
+        await get().refreshFolders();
+        await enterFolder(entry);
       } catch (e: any) {
         if (e?.name === 'AbortError') return;
         set({ error: e?.message ?? 'Failed to open folder.' });
+      }
+    },
+
+    refreshFolders: async () => {
+      set({ folders: await listFolders() });
+    },
+
+    switchFolder: async (id) => {
+      if (id === get().currentFolderId) return;
+      try {
+        const entry = await getFolder(id);
+        if (!entry) return;
+        if (!(await ensurePermission(entry.dirHandle))) {
+          set({ error: 'Permission to the folder was denied.' });
+          return;
+        }
+        await saveIfDirty();
+        set({ openTabs: [] }); // tabs are per-folder
+        await enterFolder(entry);
+      } catch (e: any) {
+        set({ error: e?.message ?? 'Failed to open folder.' });
+      }
+    },
+
+    forgetFolder: async (id) => {
+      await removeFolder(id);
+      await get().refreshFolders();
+      if (id === get().currentFolderId) {
+        set({ workspaceDir: null, workspaceName: null, currentFolderId: null, projects: [] });
       }
     },
 
@@ -616,7 +683,7 @@ export const useStore = create<AppState>((set, get) => {
         await saveIfDirty();
         const project = await readProjectFromRef(ref);
         get().loadProject(project, ref.handle, ref.fileName);
-        await persistWorkspace();
+        await persistCurrentFolder();
       } catch (e: any) {
         set({ error: e?.message ?? 'Failed to open project.' });
       }
@@ -635,7 +702,7 @@ export const useStore = create<AppState>((set, get) => {
         const ref = await createProjectFile(workspaceDir, fileName, project);
         set({ projects: [...projects, ref].sort((a, b) => a.name.localeCompare(b.name)) });
         get().loadProject(project, ref.handle, ref.fileName);
-        await persistWorkspace();
+        await persistCurrentFolder();
       } catch (e: any) {
         set({ error: e?.message ?? 'Failed to create project.' });
       }
@@ -658,21 +725,16 @@ export const useStore = create<AppState>((set, get) => {
 
     restoreWorkspace: async () => {
       try {
-        const ws = await getWorkspace();
-        // Auto-restore silently — never prompt for permission on startup.
-        if (!ws?.dirHandle || !(await hasPermission(ws.dirHandle))) return;
-        const projects = await listProjects(ws.dirHandle);
-        set({
-          workspaceDir: ws.dirHandle,
-          workspaceName: ws.dirHandle.name ?? 'Workspace',
-          projects,
-          sidebarOpen: true,
-        });
-        const target =
-          projects.find((p) => p.fileName === ws.lastActive) ?? projects[0];
-        if (target) await get().switchProject(target.fileName);
+        await get().refreshFolders();
+        // Reopen the most-recent folder silently — never prompt on startup.
+        for (const entry of get().folders) {
+          if (await hasPermission(entry.dirHandle)) {
+            await enterFolder(entry);
+            return;
+          }
+        }
       } catch {
-        // A failed restore is non-fatal; the user can open the folder manually.
+        // A failed restore is non-fatal; the user can open a folder manually.
       }
     },
   };

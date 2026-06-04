@@ -1,19 +1,21 @@
-// Persists the workspace pointer (the directory handle + last-open project) so the
-// app reopens the same folder on startup (SPEC.md §5). Directory handles are
-// structured-cloneable in supporting browsers and stored in IndexedDB. No deps —
-// raw IndexedDB behind a small promise wrapper.
+// Persists the set of opened workspace folders so they can be re-listed and
+// reopened (SPEC.md §5). Directory handles are structured-cloneable in supporting
+// browsers and stored in IndexedDB keyed by a stable id. The "current" folder is
+// the one with the most recent `lastOpened`. No deps — raw IndexedDB.
 
 import type { FileRef } from './file';
 
-export interface WorkspacePointer {
-  id: 'current';
+export interface FolderEntry {
+  id: string;
+  name: string;
   dirHandle: FileRef;
   /** File name of the project that was focused, to restore on reopen. */
   lastActive: string | null;
+  lastOpened: number;
 }
 
 const DB_NAME = 'advanced-tasker';
-const STORE = 'workspace';
+const STORE = 'folders';
 
 function idbAvailable(): boolean {
   return typeof indexedDB !== 'undefined';
@@ -21,7 +23,7 @@ function idbAvailable(): boolean {
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 2);
+    const req = indexedDB.open(DB_NAME, 3);
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains(STORE)) {
@@ -48,19 +50,37 @@ function tx<T>(
   );
 }
 
-export async function putWorkspace(dirHandle: FileRef, lastActive: string | null): Promise<void> {
+export async function putFolder(entry: FolderEntry): Promise<void> {
   if (!idbAvailable()) return;
-  await tx('readwrite', (s) => s.put({ id: 'current', dirHandle, lastActive }));
+  await tx('readwrite', (s) => s.put(entry));
 }
 
-export async function getWorkspace(): Promise<WorkspacePointer | undefined> {
+export async function listFolders(): Promise<FolderEntry[]> {
+  if (!idbAvailable()) return [];
+  const all = (await tx<FolderEntry[]>('readonly', (s) => s.getAll())) ?? [];
+  return all.sort((a, b) => b.lastOpened - a.lastOpened);
+}
+
+export async function getFolder(id: string): Promise<FolderEntry | undefined> {
   if (!idbAvailable()) return undefined;
-  return tx<WorkspacePointer | undefined>('readonly', (s) => s.get('current'));
+  return tx<FolderEntry | undefined>('readonly', (s) => s.get(id));
 }
 
-export async function clearWorkspace(): Promise<void> {
+export async function removeFolder(id: string): Promise<void> {
   if (!idbAvailable()) return;
-  await tx('readwrite', (s) => s.delete('current'));
+  await tx('readwrite', (s) => s.delete(id));
+}
+
+/** Find an already-known folder whose handle points at the same directory. */
+export async function findFolderByHandle(handle: FileRef): Promise<FolderEntry | undefined> {
+  for (const f of await listFolders()) {
+    try {
+      if (await handle.isSameEntry?.(f.dirHandle)) return f;
+    } catch {
+      // ignore handles we can't compare
+    }
+  }
+  return undefined;
 }
 
 /** Ensure read/write permission for a handle, prompting only if needed. */

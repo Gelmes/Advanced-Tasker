@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import {
   Pressable,
   StyleSheet,
@@ -16,6 +16,9 @@ import type { StatusDef, TaskNode } from '../model/types';
 import { useStore } from '../store/useStore';
 
 const INDENT_PX = 22;
+// Shared line metrics so the editing TextInput matches the display text exactly
+// (no row-height jump when entering edit mode). The field auto-grows from one line.
+const LINE_HEIGHT = 20;
 
 function statusFor(node: TaskNode, statuses: StatusDef[]): StatusDef | undefined {
   return node.status ? statuses.find((s) => s.id === node.status) : undefined;
@@ -79,6 +82,7 @@ export function NodeRow({ node, depth, statuses, nowMs }: Props) {
   const pct = rollup ? completion(rollup) : null;
 
   const inputRef = useRef<TextInputType>(null);
+  const [editHeight, setEditHeight] = useState(LINE_HEIGHT);
   useEffect(() => {
     if (isEditing) inputRef.current?.focus();
   }, [isEditing]);
@@ -141,11 +145,14 @@ export function NodeRow({ node, depth, statuses, nowMs }: Props) {
         {isEditing ? (
           <TextInput
             ref={inputRef}
-            style={styles.input}
+            style={[styles.input, { height: editHeight }]}
             value={node.content}
             onChangeText={(t) => setNodeContent(node.id, t)}
             onKeyPress={onKeyPress}
             onBlur={() => setMode('selected')}
+            onContentSizeChange={(e) =>
+              setEditHeight(Math.max(LINE_HEIGHT, e.nativeEvent.contentSize.height))
+            }
             multiline
             blurOnSubmit={false}
             placeholder="Type…"
@@ -239,14 +246,18 @@ const styles = StyleSheet.create({
     borderColor: '#d1d5db',
   },
   contentWrap: { flex: 1 },
-  content: { fontSize: 14, color: '#111827' },
+  content: { fontSize: 14, lineHeight: LINE_HEIGHT, color: '#111827' },
   placeholder: { color: '#9ca3af', fontStyle: 'italic' },
   input: {
     flex: 1,
     fontSize: 14,
+    lineHeight: LINE_HEIGHT,
     color: '#111827',
     padding: 0,
+    margin: 0,
+    borderWidth: 0,
     outlineWidth: 0,
+    textAlignVertical: 'top',
   } as any,
   rollup: {
     fontSize: 11,

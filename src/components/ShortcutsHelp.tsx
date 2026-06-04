@@ -12,6 +12,7 @@ const VIM_SECTION: Section = {
   title: 'Vim navigation (when on)',
   rows: [
     ['j / k', 'Down / up'],
+    ['Alt+j / Alt+k', 'Move node down / up among siblings'],
     ['h / l', 'Collapse / expand'],
     ['g g / G', 'Jump to top / bottom'],
     ['Ctrl-d / Ctrl-u', 'Half-page down / up'],

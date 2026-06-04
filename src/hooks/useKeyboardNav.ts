@@ -95,6 +95,12 @@ export function useKeyboardNav(): void {
           consume();
           return s.moveSelectionBy(e.key === 'd' ? VIM_PAGE : -VIM_PAGE);
         }
+        // Alt+j / Alt+k move the node among siblings (mirrors Alt+↑/↓). Use e.code
+        // so it works regardless of the char Alt produces (e.g. Option on macOS).
+        if (e.altKey && !e.ctrlKey && !e.metaKey) {
+          if (e.code === 'KeyJ') return consume(), s.moveSelected(1);
+          if (e.code === 'KeyK') return consume(), s.moveSelected(-1);
+        }
         switch (e.key) {
           case 'j':
             return consume(), s.moveSelection(1);

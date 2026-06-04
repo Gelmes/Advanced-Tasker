@@ -179,16 +179,9 @@ export function NodeRow({ node, depth, statuses, doneStatusIds, nowMs }: Props) 
         ) : (
           <Pressable style={styles.contentWrap} onPress={onContentPress}>
             {node.content ? (
-              <InlineMarkdown
-                text={node.content}
-                style={styles.content}
-                numberOfLines={1}
-                onTagPress={searchTag}
-              />
+              <InlineMarkdown text={node.content} style={styles.content} onTagPress={searchTag} />
             ) : (
-              <Text style={[styles.content, styles.placeholder]} numberOfLines={1}>
-                Empty
-              </Text>
+              <Text style={[styles.content, styles.placeholder]}>Empty</Text>
             )}
           </Pressable>
         )}
@@ -242,7 +235,8 @@ function tint(hex: string): string {
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    alignItems: 'center',
+    // Top-align so the controls line up with the first line of wrapped content.
+    alignItems: 'flex-start',
     paddingVertical: 6,
     paddingRight: 12,
     borderLeftWidth: 3,
@@ -258,17 +252,26 @@ const styles = StyleSheet.create({
   dropInside: { backgroundColor: '#dbeafe' },
   dropBefore: { borderTopWidth: 2, borderTopColor: '#2563eb' },
   dropAfter: { borderBottomWidth: 2, borderBottomColor: '#2563eb' },
-  grip: { width: 14, alignItems: 'center', justifyContent: 'center', cursor: 'grab' } as any,
+  // The controls each occupy one line-height box so they align with the first
+  // line of (possibly wrapped) content.
+  grip: {
+    width: 14,
+    height: LINE_HEIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'grab',
+  } as any,
   gripText: { fontSize: 12, color: '#d1d5db' },
-  twisty: { width: 18, color: '#6b7280', fontSize: 16, textAlign: 'center' },
-  leaf: { width: 18, color: '#d1d5db', fontSize: 12, textAlign: 'center' },
-  statusDot: { width: 10, height: 10, borderRadius: 5 },
+  twisty: { width: 18, lineHeight: LINE_HEIGHT, color: '#6b7280', fontSize: 16, textAlign: 'center' },
+  leaf: { width: 18, lineHeight: LINE_HEIGHT, color: '#d1d5db', fontSize: 12, textAlign: 'center' },
+  statusDot: { width: 10, height: 10, borderRadius: 5, marginTop: (LINE_HEIGHT - 10) / 2 },
   statusDotEmpty: {
     width: 10,
     height: 10,
     borderRadius: 5,
     borderWidth: 1,
     borderColor: '#d1d5db',
+    marginTop: (LINE_HEIGHT - 10) / 2,
   },
   contentWrap: { flex: 1 },
   content: { fontSize: 14, lineHeight: LINE_HEIGHT, color: '#111827' },
@@ -290,13 +293,15 @@ const styles = StyleSheet.create({
   } as any,
   rollup: {
     fontSize: 11,
+    lineHeight: LINE_HEIGHT,
     color: '#9ca3af',
     fontVariant: ['tabular-nums'],
   },
   timer: {
     width: 66,
+    height: LINE_HEIGHT,
+    justifyContent: 'center',
     paddingHorizontal: 5,
-    paddingVertical: 2,
     borderRadius: 5,
   },
   timerRunning: { backgroundColor: '#dcfce7' },
@@ -304,6 +309,7 @@ const styles = StyleSheet.create({
   timerTextRunning: { color: '#15803d', fontWeight: '600' },
   points: {
     width: 44,
+    lineHeight: LINE_HEIGHT,
     textAlign: 'right',
     fontSize: 12,
     color: '#6b7280',

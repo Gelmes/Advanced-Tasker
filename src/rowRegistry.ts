@@ -9,9 +9,9 @@ export function setRow(id: string, el: any): void {
   else rows.delete(id);
 }
 
-export function scrollRowIntoView(id: string): void {
+export function scrollRowIntoView(id: string, block: 'center' | 'nearest' = 'center'): void {
   const el = rows.get(id);
   if (el && typeof el.scrollIntoView === 'function') {
-    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    el.scrollIntoView({ block, behavior: 'smooth' });
   }
 }

@@ -7,9 +7,15 @@ import { useStore } from '../store/useStore';
 // row's TextInput so typing passes through untouched. This listener no-ops while
 // mode === 'editing'.
 
+const VIM_PAGE = 10; // rows moved by Ctrl-d / Ctrl-u
+
 export function useKeyboardNav(): void {
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+
+    // State for the `gg` two-key motion.
+    let pendingG = false;
+    let gTimer: ReturnType<typeof setTimeout> | null = null;
 
     const onKeyDown = (e: KeyboardEvent) => {
       const s = useStore.getState();
@@ -67,6 +73,49 @@ export function useKeyboardNav(): void {
       }
 
       if (s.mode !== 'selected') return;
+
+      // Vim navigation layer (opt-in). Falls through to the standard keymap for
+      // any key it doesn't claim, so S/P/Space/Enter/Tab/Delete still work.
+      if (s.vimNav) {
+        if (e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'd' || e.key === 'u')) {
+          consume();
+          return s.moveSelectionBy(e.key === 'd' ? VIM_PAGE : -VIM_PAGE);
+        }
+        switch (e.key) {
+          case 'j':
+            return consume(), s.moveSelection(1);
+          case 'k':
+            return consume(), s.moveSelection(-1);
+          case 'h':
+            return consume(), s.collapseSelected(true);
+          case 'l':
+            return consume(), s.collapseSelected(false);
+          case 'G':
+            return consume(), s.selectEdge('last');
+          case 'g':
+            consume();
+            if (pendingG) {
+              pendingG = false;
+              if (gTimer) clearTimeout(gTimer);
+              gTimer = null;
+              s.selectEdge('first');
+            } else {
+              pendingG = true;
+              gTimer = setTimeout(() => {
+                pendingG = false;
+                gTimer = null;
+              }, 600);
+            }
+            return;
+          case 'i': // insert
+          case 'a': // append
+            return consume(), s.editSelected();
+          case 'o': // open line below
+            return consume(), s.newSibling();
+          default:
+            break; // not a vim key — fall through
+        }
+      }
 
       // Move a node among its siblings (Alt + ↑/↓) — checked before plain arrows.
       if (e.altKey && e.key === 'ArrowUp') return consume(), s.moveSelected(-1);

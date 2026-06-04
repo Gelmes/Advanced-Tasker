@@ -127,6 +127,13 @@ Tree-op rules:
 The global key listener ignores events whose target is a text field (node editor,
 project title, status inputs), and `?` toggles the shortcuts reference.
 
+**Vim navigation** (opt-in toggle in the shortcuts panel, persisted to localStorage):
+adds `j/k` (down/up), `h/l` (collapse/expand), `gg`/`G` (top/bottom), `Ctrl-d`/`Ctrl-u`
+(half-page), and the insert family `i`/`a` (edit) + `o` (new row below). It's additive —
+arrows and the other shortcuts still work — except `i` becomes *insert*, so the details
+panel moves to `Shift+I` (and the toolbar button). Moving the selection now scrolls it
+into view.
+
 **Undo/redo** (`Ctrl/Cmd+Z`, `Ctrl/Cmd+Shift+Z` or `Ctrl+Y`): every committed mutation
 pushes the previous project snapshot onto an undo stack (rapid same-target typing is
 coalesced into one step). Collapse/expand is not recorded; loading a different project

@@ -14,6 +14,7 @@ import {
   moveNodeRelative,
   moveWithinSiblings,
   outdent,
+  visibleNodes,
   setCollapsed,
   setContent,
   setStatus,
@@ -86,6 +87,8 @@ export interface AppState {
   /** File names of projects open as tabs, in tab order. */
   openTabs: string[];
   sidebarOpen: boolean;
+  /** Vim-style navigation keys (hjkl, gg/G, Ctrl-d/u, i/a/o). Persisted. */
+  vimNav: boolean;
   /** Which sidebar view is showing. */
   sidebarTab: 'projects' | 'search';
   /** Search/tag-filter query for the sidebar search view. */
@@ -96,7 +99,12 @@ export interface AppState {
   // Selection / mode
   select: (id: string | null) => void;
   setMode: (mode: Mode) => void;
+  setVimNav: (on: boolean) => void;
   moveSelection: (dir: -1 | 1) => void;
+  /** Move the selection by N visible rows (vim Ctrl-d/u). */
+  moveSelectionBy: (delta: number) => void;
+  /** Select the first/last visible node (vim gg / G). */
+  selectEdge: (edge: 'first' | 'last') => void;
   collapseSelected: (collapsed: boolean) => void;
   toggleCollapseFor: (id: string) => void;
   editSelected: () => void;
@@ -164,6 +172,15 @@ export interface AppState {
   restoreWorkspace: () => Promise<void>;
   rebuildFolderIndex: () => Promise<void>;
   openSearchResult: (fileName: string, id: string) => Promise<void>;
+}
+
+const VIM_KEY = 'advanced-tasker:vimNav';
+function readVimNav(): boolean {
+  try {
+    return typeof localStorage !== 'undefined' && localStorage.getItem(VIM_KEY) === '1';
+  } catch {
+    return false;
+  }
 }
 
 export const useStore = create<AppState>((set, get) => {
@@ -327,6 +344,7 @@ export const useStore = create<AppState>((set, get) => {
     indexing: false,
     openTabs: [],
     sidebarOpen: false,
+    vimNav: readVimNav(),
     sidebarTab: 'projects',
     tagQuery: '',
     helpOpen: false,
@@ -335,16 +353,50 @@ export const useStore = create<AppState>((set, get) => {
     select: (id) => set({ selectedId: id }),
     setMode: (mode) => set({ mode }),
 
+    setVimNav: (on) => {
+      try {
+        if (typeof localStorage !== 'undefined') localStorage.setItem(VIM_KEY, on ? '1' : '0');
+      } catch {
+        // ignore storage failures
+      }
+      set({ vimNav: on });
+    },
+
     moveSelection: (dir) => {
       const { project, selectedId } = get();
       const order = project.root.children;
       if (!selectedId) {
         const first = order[0]?.id ?? null;
-        set({ selectedId: first });
+        if (first) {
+          set({ selectedId: first });
+          scrollRowIntoView(first, 'nearest');
+        }
         return;
       }
       const next = adjacentVisible(order, selectedId, dir);
-      if (next) set({ selectedId: next });
+      if (next) {
+        set({ selectedId: next });
+        scrollRowIntoView(next, 'nearest');
+      }
+    },
+
+    moveSelectionBy: (delta) => {
+      const { project, selectedId } = get();
+      const order = visibleNodes(project.root.children);
+      if (!order.length) return;
+      const cur = selectedId ? order.findIndex((n) => n.id === selectedId) : -1;
+      const from = cur < 0 ? (delta > 0 ? -1 : order.length) : cur;
+      const id = order[Math.min(order.length - 1, Math.max(0, from + delta))].id;
+      set({ selectedId: id });
+      scrollRowIntoView(id, 'nearest');
+    },
+
+    selectEdge: (edge) => {
+      const order = visibleNodes(get().project.root.children);
+      if (!order.length) return;
+      const id = (edge === 'first' ? order[0] : order[order.length - 1]).id;
+      set({ selectedId: id });
+      scrollRowIntoView(id, 'center');
     },
 
     collapseSelected: (collapsed) => {

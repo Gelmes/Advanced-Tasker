@@ -1,4 +1,5 @@
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useStore } from '../store/useStore';
 
 // Reference of all key bindings (mirrors SPEC.md §3 + the global save key).
 
@@ -6,6 +7,19 @@ interface Section {
   title: string;
   rows: [string, string][];
 }
+
+const VIM_SECTION: Section = {
+  title: 'Vim navigation (when on)',
+  rows: [
+    ['j / k', 'Down / up'],
+    ['h / l', 'Collapse / expand'],
+    ['g g / G', 'Jump to top / bottom'],
+    ['Ctrl-d / Ctrl-u', 'Half-page down / up'],
+    ['i / a', 'Edit the row (insert / append)'],
+    ['o', 'New row below'],
+    ['Shift+I', 'Toggle details (since i = insert)'],
+  ],
+};
 
 const SECTIONS: Section[] = [
   {
@@ -60,6 +74,10 @@ interface Props {
 }
 
 export function ShortcutsHelp({ visible, onClose }: Props) {
+  const vimNav = useStore((s) => s.vimNav);
+  const setVimNav = useStore((s) => s.setVimNav);
+  const sections = vimNav ? [VIM_SECTION, ...SECTIONS] : SECTIONS;
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
@@ -71,8 +89,18 @@ export function ShortcutsHelp({ visible, onClose }: Props) {
             </Pressable>
           </View>
 
+          <Pressable style={styles.toggle} onPress={() => setVimNav(!vimNav)}>
+            <View style={[styles.checkbox, vimNav && styles.checkboxOn]}>
+              {vimNav && <Text style={styles.checkmark}>✓</Text>}
+            </View>
+            <View>
+              <Text style={styles.toggleLabel}>Vim navigation</Text>
+              <Text style={styles.toggleHint}>hjkl, gg/G, Ctrl-d/u, i/a/o</Text>
+            </View>
+          </Pressable>
+
           <ScrollView style={styles.body}>
-            {SECTIONS.map((section) => (
+            {sections.map((section) => (
               <View key={section.title} style={styles.section}>
                 <Text style={styles.sectionTitle}>{section.title}</Text>
                 {section.rows.map(([keys, desc]) => (
@@ -106,6 +134,29 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
   },
+  toggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    marginBottom: 8,
+    borderRadius: 8,
+    backgroundColor: '#f5f7ff',
+  },
+  checkbox: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#9ca3af',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxOn: { backgroundColor: '#4f46e5', borderColor: '#4f46e5' },
+  checkmark: { color: '#ffffff', fontSize: 12, fontWeight: '700' },
+  toggleLabel: { fontSize: 13, fontWeight: '600', color: '#111827' },
+  toggleHint: { fontSize: 11, color: '#9ca3af' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

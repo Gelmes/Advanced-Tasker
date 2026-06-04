@@ -44,6 +44,8 @@ const SECTIONS: Section[] = [
     title: 'Files & mouse',
     rows: [
       ['Ctrl/Cmd+S', 'Save'],
+      ['Ctrl/Cmd+Z', 'Undo'],
+      ['Ctrl/Cmd+Shift+Z / Ctrl+Y', 'Redo'],
       ['Click row', 'Select (click again to edit)'],
       ['Click dot / pts / timer', 'Cycle status / points / timer'],
       ['Drag the ⠿ grip', 'Reorder: drop before / inside / after'],

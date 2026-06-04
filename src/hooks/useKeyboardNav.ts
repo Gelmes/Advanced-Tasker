@@ -26,6 +26,19 @@ export function useKeyboardNav(): void {
         return;
       }
 
+      // Undo / redo (Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z or Ctrl+Y) — any mode.
+      if ((e.metaKey || e.ctrlKey) && !e.altKey) {
+        const k = e.key.toLowerCase();
+        if (k === 'z') {
+          consume();
+          return e.shiftKey ? s.redo() : s.undo();
+        }
+        if (k === 'y') {
+          consume();
+          return s.redo();
+        }
+      }
+
       // Markdown emphasis (Cmd/Ctrl+B/I/E) — works while editing too.
       if ((e.metaKey || e.ctrlKey) && !e.altKey) {
         const k = e.key.toLowerCase();

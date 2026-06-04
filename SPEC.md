@@ -106,6 +106,11 @@ Tree-op rules:
 The global key listener ignores events whose target is a text field (node editor,
 project title, status inputs), and `?` toggles the shortcuts reference.
 
+**Undo/redo** (`Ctrl/Cmd+Z`, `Ctrl/Cmd+Shift+Z` or `Ctrl+Y`): every committed mutation
+pushes the previous project snapshot onto an undo stack (rapid same-target typing is
+coalesced into one step). Collapse/expand is not recorded; loading a different project
+resets history.
+
 ## 4. UI rules
 
 - **Row coloring:** task rows get a subtle left-border + faint background tint in the

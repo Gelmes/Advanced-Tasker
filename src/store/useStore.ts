@@ -60,6 +60,10 @@ export interface AppState {
   saving: boolean;
   error: string | null;
 
+  /** Undo/redo snapshot stacks (most recent at the end of `past`). */
+  past: ProjectFile[];
+  future: ProjectFile[];
+
   // Workspace: a folder of .json projects (SPEC.md §5)
   workspaceDir: FileRef | null;
   workspaceName: string | null;
@@ -89,6 +93,8 @@ export interface AppState {
   toggleEmphasisSelected: (marker: string) => void;
   setProjectName: (name: string) => void;
   moveNode: (dragId: string, targetId: string, where: DropWhere) => void;
+  undo: () => void;
+  redo: () => void;
 
   // Status & story points (dir +1 forward, -1 backward)
   cycleStatusFor: (id: string, dir?: 1 | -1) => void;
@@ -127,18 +133,60 @@ export interface AppState {
 }
 
 export const useStore = create<AppState>((set, get) => {
-  /** Clone the project, run a mutation on its root children, commit + mark dirty. */
-  const apply = (fn: (root: ProjectFile['root']['children']) => void) => {
+  // --- Undo/redo history ------------------------------------------------------
+  // Each committed mutation pushes the *previous* project onto `past`. Because
+  // every mutation produces a brand-new immutable project object, history just
+  // holds references (no extra cloning). Rapid same-target edits (typing) are
+  // coalesced into a single step via a tag + time window.
+  const HISTORY_LIMIT = 100;
+  const COALESCE_MS = 600;
+  let histTag: string | null = null;
+  let histAt = 0;
+
+  const recordHistory = (tag: string | null) => {
+    const now = Date.now();
+    const coalesce = tag != null && tag === histTag && now - histAt < COALESCE_MS;
+    histTag = tag;
+    histAt = now;
+    if (coalesce) {
+      set({ future: [] });
+      return;
+    }
+    set({ past: [...get().past, get().project].slice(-HISTORY_LIMIT), future: [] });
+  };
+
+  /** Mutate the tree without recording history (e.g. collapse/expand). */
+  const applySilent = (fn: (root: ProjectFile['root']['children']) => void) => {
     const next = cloneProject(get().project);
     fn(next.root.children);
     set({ project: next, dirty: true });
   };
 
+  /** Clone the project, run a mutation on its root children, commit + mark dirty. */
+  const apply = (
+    fn: (root: ProjectFile['root']['children']) => void,
+    tag: string | null = null,
+  ) => {
+    recordHistory(tag);
+    applySilent(fn);
+  };
+
   /** Like `apply` but for edits that touch the project itself (e.g. statuses). */
-  const applyProject = (fn: (project: ProjectFile) => void) => {
+  const applyProject = (
+    fn: (project: ProjectFile) => void,
+    tag: string | null = null,
+  ) => {
+    recordHistory(tag);
     const next = cloneProject(get().project);
     fn(next);
     set({ project: next, dirty: true });
+  };
+
+  /** Reset undo history (called when a different document is loaded). */
+  const resetHistory = () => {
+    histTag = null;
+    histAt = 0;
+    set({ past: [], future: [] });
   };
 
   /** Persist the workspace pointer (folder + last-open project) for reopen. */
@@ -162,6 +210,9 @@ export const useStore = create<AppState>((set, get) => {
     dirty: false,
     saving: false,
     error: null,
+
+    past: [],
+    future: [],
 
     workspaceDir: null,
     workspaceName: null,
@@ -188,13 +239,13 @@ export const useStore = create<AppState>((set, get) => {
     collapseSelected: (collapsed) => {
       const { selectedId } = get();
       if (!selectedId) return;
-      apply((root) => setCollapsed(root, selectedId, collapsed));
+      applySilent((root) => setCollapsed(root, selectedId, collapsed));
     },
 
     toggleCollapseFor: (id) => {
       const node = findNode(get().project.root.children, id);
       if (!node) return;
-      apply((root) => setCollapsed(root, id, !node.collapsed));
+      applySilent((root) => setCollapsed(root, id, !node.collapsed));
     },
 
     editSelected: () => {
@@ -248,7 +299,42 @@ export const useStore = create<AppState>((set, get) => {
       set({ selectedId: nextSel, mode: nextSel ? 'editing' : 'selected' });
     },
 
-    setNodeContent: (id, content) => apply((root) => setContent(root, id, content)),
+    setNodeContent: (id, content) =>
+      apply((root) => setContent(root, id, content), `content:${id}`),
+
+    undo: () => {
+      const { past, future, project, selectedId } = get();
+      if (!past.length) return;
+      const previous = past[past.length - 1];
+      const keepSel =
+        selectedId && findNode(previous.root.children, selectedId) ? selectedId : null;
+      set({
+        project: previous,
+        past: past.slice(0, -1),
+        future: [project, ...future].slice(0, HISTORY_LIMIT),
+        selectedId: keepSel,
+        mode: 'selected',
+        dirty: true,
+      });
+      histTag = null;
+    },
+
+    redo: () => {
+      const { past, future, project, selectedId } = get();
+      if (!future.length) return;
+      const nextProject = future[0];
+      const keepSel =
+        selectedId && findNode(nextProject.root.children, selectedId) ? selectedId : null;
+      set({
+        project: nextProject,
+        future: future.slice(1),
+        past: [...past, project].slice(-HISTORY_LIMIT),
+        selectedId: keepSel,
+        mode: 'selected',
+        dirty: true,
+      });
+      histTag = null;
+    },
 
     toggleEmphasisSelected: (marker) => {
       const { selectedId, project } = get();
@@ -262,7 +348,7 @@ export const useStore = create<AppState>((set, get) => {
     setProjectName: (name) => {
       applyProject((project) => {
         project.name = name;
-      });
+      }, 'name');
       // Keep the sidebar label for the active project in sync.
       const { fileName } = get();
       if (fileName) {
@@ -363,6 +449,7 @@ export const useStore = create<AppState>((set, get) => {
       }),
 
     newProject: () => {
+      resetHistory();
       set({
         project: createEmptyProject('Untitled'),
         selectedId: null,
@@ -379,6 +466,7 @@ export const useStore = create<AppState>((set, get) => {
         fileName && !get().openTabs.includes(fileName)
           ? [...get().openTabs, fileName]
           : get().openTabs;
+      resetHistory();
       set({
         project,
         selectedId: null,

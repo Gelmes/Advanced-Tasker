@@ -6,10 +6,26 @@ import { StatusManager } from './StatusManager';
 
 // Top toolbar: workspace + file actions and save status.
 
-function Button({ label, onPress }: { label: string; onPress: () => void }) {
+function Button({
+  label,
+  onPress,
+  disabled,
+}: {
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+}) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]}>
-      <Text style={styles.btnText}>{label}</Text>
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={({ pressed }) => [
+        styles.btn,
+        pressed && styles.btnPressed,
+        disabled && styles.btnDisabled,
+      ]}
+    >
+      <Text style={[styles.btnText, disabled && styles.btnTextDisabled]}>{label}</Text>
     </Pressable>
   );
 }
@@ -28,6 +44,10 @@ export function WorkspaceBar() {
   const saveProjectAs = useStore((s) => s.saveProjectAs);
   const helpOpen = useStore((s) => s.helpOpen);
   const setHelpOpen = useStore((s) => s.setHelpOpen);
+  const canUndo = useStore((s) => s.past.length > 0);
+  const canRedo = useStore((s) => s.future.length > 0);
+  const undo = useStore((s) => s.undo);
+  const redo = useStore((s) => s.redo);
 
   const [statusManagerOpen, setStatusManagerOpen] = useState(false);
 
@@ -50,6 +70,8 @@ export function WorkspaceBar() {
         <Button label="Open File" onPress={() => void openProject()} />
         <Button label="Save" onPress={() => void saveProject()} />
         <Button label="Save As" onPress={() => void saveProjectAs()} />
+        <Button label="↶ Undo" onPress={undo} disabled={!canUndo} />
+        <Button label="↷ Redo" onPress={redo} disabled={!canRedo} />
         <Button label="Statuses" onPress={() => setStatusManagerOpen(true)} />
         <Button label="⌨ Shortcuts" onPress={() => setHelpOpen(true)} />
       </View>
@@ -85,7 +107,9 @@ const styles = StyleSheet.create({
     borderColor: '#d1d5db',
   },
   btnPressed: { backgroundColor: '#eef2ff' },
+  btnDisabled: { opacity: 0.4 },
   btnText: { fontSize: 13, color: '#374151' },
+  btnTextDisabled: { color: '#9ca3af' },
   status: { fontSize: 12, color: '#6b7280', flexShrink: 1 },
   statusError: { color: '#b91c1c' },
 });

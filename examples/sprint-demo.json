@@ -1,0 +1,336 @@
+{
+  "version": 1,
+  "name": "Sprint 24 — Demo",
+  "statuses": [
+    {
+      "id": "todo",
+      "label": "To Do",
+      "color": "#888888",
+      "kind": "todo"
+    },
+    {
+      "id": "doing",
+      "label": "Doing",
+      "color": "#3b82f6",
+      "kind": "active"
+    },
+    {
+      "id": "blocked",
+      "label": "Blocked",
+      "color": "#ef4444",
+      "kind": "active"
+    },
+    {
+      "id": "done",
+      "label": "Done",
+      "color": "#22c55e",
+      "kind": "done"
+    }
+  ],
+  "pointScale": [
+    1,
+    2,
+    3,
+    5,
+    8,
+    13
+  ],
+  "activeTimerNodeId": null,
+  "root": {
+    "children": [
+      {
+        "id": "n12",
+        "content": "Sprint 24 — Core App",
+        "status": "doing",
+        "storyPoints": null,
+        "time": {
+          "accumulatedSeconds": 0,
+          "startedAt": null
+        },
+        "statusHistory": [
+          {
+            "at": "2026-05-19T08:00:00.000Z",
+            "status": "doing"
+          }
+        ],
+        "collapsed": false,
+        "createdAt": "2026-05-19T08:00:00.000Z",
+        "updatedAt": "2026-05-19T08:00:00.000Z",
+        "children": [
+          {
+            "id": "n1",
+            "content": "Set up CI pipeline",
+            "status": "done",
+            "storyPoints": 3,
+            "time": {
+              "accumulatedSeconds": 10800,
+              "startedAt": null
+            },
+            "statusHistory": [
+              {
+                "at": "2026-05-19T09:30:00.000Z",
+                "status": "doing"
+              },
+              {
+                "at": "2026-05-20T11:00:00.000Z",
+                "status": "done"
+              }
+            ],
+            "collapsed": false,
+            "createdAt": "2026-05-19T09:00:00.000Z",
+            "updatedAt": "2026-05-20T11:00:00.000Z",
+            "children": []
+          },
+          {
+            "id": "n2",
+            "content": "Auth API",
+            "status": "done",
+            "storyPoints": 5,
+            "time": {
+              "accumulatedSeconds": 32400,
+              "startedAt": null
+            },
+            "statusHistory": [
+              {
+                "at": "2026-05-20T10:00:00.000Z",
+                "status": "doing"
+              },
+              {
+                "at": "2026-05-23T16:00:00.000Z",
+                "status": "done"
+              }
+            ],
+            "collapsed": false,
+            "createdAt": "2026-05-19T09:05:00.000Z",
+            "updatedAt": "2026-05-23T16:00:00.000Z",
+            "children": []
+          },
+          {
+            "id": "n3",
+            "content": "Login UI",
+            "status": "done",
+            "storyPoints": 3,
+            "time": {
+              "accumulatedSeconds": 18000,
+              "startedAt": null
+            },
+            "statusHistory": [
+              {
+                "at": "2026-05-23T09:00:00.000Z",
+                "status": "doing"
+              },
+              {
+                "at": "2026-05-24T15:00:00.000Z",
+                "status": "done"
+              }
+            ],
+            "collapsed": false,
+            "createdAt": "2026-05-19T09:10:00.000Z",
+            "updatedAt": "2026-05-24T15:00:00.000Z",
+            "children": []
+          },
+          {
+            "id": "n4",
+            "content": "DB schema",
+            "status": "done",
+            "storyPoints": 5,
+            "time": {
+              "accumulatedSeconds": 21600,
+              "startedAt": null
+            },
+            "statusHistory": [
+              {
+                "at": "2026-05-21T09:00:00.000Z",
+                "status": "doing"
+              },
+              {
+                "at": "2026-05-22T17:00:00.000Z",
+                "status": "done"
+              }
+            ],
+            "collapsed": false,
+            "createdAt": "2026-05-19T09:15:00.000Z",
+            "updatedAt": "2026-05-22T17:00:00.000Z",
+            "children": []
+          },
+          {
+            "id": "n6",
+            "content": "Profile page",
+            "status": "done",
+            "storyPoints": 8,
+            "time": {
+              "accumulatedSeconds": 50400,
+              "startedAt": null
+            },
+            "statusHistory": [
+              {
+                "at": "2026-05-22T10:00:00.000Z",
+                "status": "todo"
+              },
+              {
+                "at": "2026-05-26T09:00:00.000Z",
+                "status": "doing"
+              },
+              {
+                "at": "2026-05-29T16:00:00.000Z",
+                "status": "done"
+              }
+            ],
+            "collapsed": false,
+            "createdAt": "2026-05-22T10:00:00.000Z",
+            "updatedAt": "2026-05-29T16:00:00.000Z",
+            "children": [
+              {
+                "id": "n5",
+                "content": "Designs approved by Sam — see Figma frame 12",
+                "status": null,
+                "storyPoints": null,
+                "time": {
+                  "accumulatedSeconds": 0,
+                  "startedAt": null
+                },
+                "statusHistory": [],
+                "collapsed": false,
+                "createdAt": "2026-05-26T09:30:00.000Z",
+                "updatedAt": "2026-05-26T09:30:00.000Z",
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "n7",
+            "content": "Settings screen",
+            "status": "done",
+            "storyPoints": 3,
+            "time": {
+              "accumulatedSeconds": 25200,
+              "startedAt": null
+            },
+            "statusHistory": [
+              {
+                "at": "2026-05-27T09:00:00.000Z",
+                "status": "doing"
+              },
+              {
+                "at": "2026-05-28T13:00:00.000Z",
+                "status": "blocked"
+              },
+              {
+                "at": "2026-05-30T09:00:00.000Z",
+                "status": "doing"
+              },
+              {
+                "at": "2026-05-31T15:00:00.000Z",
+                "status": "done"
+              }
+            ],
+            "collapsed": false,
+            "createdAt": "2026-05-22T10:05:00.000Z",
+            "updatedAt": "2026-05-31T15:00:00.000Z",
+            "children": []
+          },
+          {
+            "id": "n8",
+            "content": "Search",
+            "status": "done",
+            "storyPoints": 8,
+            "time": {
+              "accumulatedSeconds": 39600,
+              "startedAt": null
+            },
+            "statusHistory": [
+              {
+                "at": "2026-05-30T09:00:00.000Z",
+                "status": "doing"
+              },
+              {
+                "at": "2026-06-02T14:00:00.000Z",
+                "status": "done"
+              }
+            ],
+            "collapsed": false,
+            "createdAt": "2026-05-25T12:00:00.000Z",
+            "updatedAt": "2026-06-02T14:00:00.000Z",
+            "children": []
+          },
+          {
+            "id": "n9",
+            "content": "Notifications",
+            "status": "doing",
+            "storyPoints": 5,
+            "time": {
+              "accumulatedSeconds": 14400,
+              "startedAt": null
+            },
+            "statusHistory": [
+              {
+                "at": "2026-05-26T12:00:00.000Z",
+                "status": "todo"
+              },
+              {
+                "at": "2026-06-01T09:00:00.000Z",
+                "status": "doing"
+              }
+            ],
+            "collapsed": false,
+            "createdAt": "2026-05-26T12:00:00.000Z",
+            "updatedAt": "2026-06-01T09:00:00.000Z",
+            "children": []
+          },
+          {
+            "id": "n10",
+            "content": "Billing integration",
+            "status": "todo",
+            "storyPoints": 13,
+            "time": {
+              "accumulatedSeconds": 0,
+              "startedAt": null
+            },
+            "statusHistory": [
+              {
+                "at": "2026-05-28T12:00:00.000Z",
+                "status": "todo"
+              }
+            ],
+            "collapsed": false,
+            "createdAt": "2026-05-28T12:00:00.000Z",
+            "updatedAt": "2026-05-28T12:00:00.000Z",
+            "children": []
+          },
+          {
+            "id": "n11",
+            "content": "Bug: logout crash",
+            "status": "done",
+            "storyPoints": 2,
+            "time": {
+              "accumulatedSeconds": 7200,
+              "startedAt": null
+            },
+            "statusHistory": [
+              {
+                "at": "2026-06-01T08:30:00.000Z",
+                "status": "doing"
+              },
+              {
+                "at": "2026-06-01T12:00:00.000Z",
+                "status": "done"
+              },
+              {
+                "at": "2026-06-02T09:00:00.000Z",
+                "status": "doing"
+              },
+              {
+                "at": "2026-06-03T10:00:00.000Z",
+                "status": "done"
+              }
+            ],
+            "collapsed": false,
+            "createdAt": "2026-06-01T08:00:00.000Z",
+            "updatedAt": "2026-06-03T10:00:00.000Z",
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+}

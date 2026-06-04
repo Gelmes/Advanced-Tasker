@@ -35,6 +35,8 @@ const SECTIONS: Section[] = [
       ['P / Shift+P', 'Cycle story points fwd / back'],
       ['E / F2', 'Edit the selected row'],
       ['I', 'Toggle the details panel'],
+      ['Ctrl/Cmd+C / X', 'Copy / cut node (with its children)'],
+      ['Ctrl/Cmd+V', 'Paste as a sibling below (Tab to nest)'],
       ['Delete / Backspace', 'Delete node'],
     ],
   },

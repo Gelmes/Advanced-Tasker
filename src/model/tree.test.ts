@@ -5,12 +5,15 @@ import {
   cycleValue,
   deleteNode,
   findNode,
+  cloneNode,
   indent,
   insertSiblingAfter,
+  insertSubtreeAfter,
   isDescendant,
   moveNodeRelative,
   moveWithinSiblings,
   outdent,
+  reassignIds,
   setStatus,
   setStoryPoints,
   visibleNodes,
@@ -180,6 +183,34 @@ describe('walk', () => {
     const seen: string[] = [];
     walk(sample(), (n) => seen.push(n.id));
     expect(seen.sort()).toEqual(['a', 'a1', 'a2', 'a2a', 'b']);
+  });
+});
+
+describe('cloneNode / reassignIds', () => {
+  it('clones deeply and re-ids the whole subtree', () => {
+    const a = n('a', [n('a1'), n('a2', [n('a2a')])]);
+    const copy = cloneNode(a);
+    reassignIds(copy);
+    // structure preserved, ids all changed
+    expect(ids(copy.children)).not.toEqual(['a1', 'a2']);
+    expect(copy.children[1].children).toHaveLength(1);
+    // original untouched
+    expect(ids(a.children)).toEqual(['a1', 'a2']);
+  });
+});
+
+describe('insertSubtreeAfter', () => {
+  it('inserts a subtree as a sibling after the target', () => {
+    const root = sample();
+    insertSubtreeAfter(root, 'a1', n('NEW', [n('NEW1')]));
+    expect(ids(root[0].children)).toEqual(['a1', 'NEW', 'a2']);
+    expect(root[0].children[1].children).toHaveLength(1);
+  });
+
+  it('appends at root when target is null', () => {
+    const root = sample();
+    insertSubtreeAfter(root, null, n('NEW'));
+    expect(ids(root)).toEqual(['a', 'b', 'NEW']);
   });
 });
 

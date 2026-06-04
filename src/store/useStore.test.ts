@@ -48,6 +48,48 @@ describe('undo / redo', () => {
   });
 });
 
+describe('copy / cut / paste', () => {
+  it('pastes a copy as a sibling below the selection with fresh ids', () => {
+    get().newSibling();
+    const a = get().selectedId!;
+    get().setNodeContent(a, 'A');
+    get().copySelected();
+    get().pasteAfterSelected();
+
+    const roots = get().project.root.children;
+    expect(roots).toHaveLength(2);
+    expect(roots[1].content).toBe('A');
+    expect(roots[1].id).not.toBe(a); // new id
+    expect(get().selectedId).toBe(roots[1].id); // selection follows the paste
+  });
+
+  it('a copy resets tracked time and lifecycle history', () => {
+    get().newSibling();
+    const a = get().selectedId!;
+    get().setStatusFor(a, 'done');
+    get().toggleTimerFor(a); // accrue some state
+    get().copySelected();
+    get().pasteAfterSelected();
+
+    const pasted = get().project.root.children[1];
+    expect(pasted.time.accumulatedSeconds).toBe(0);
+    expect(pasted.time.startedAt).toBeNull();
+    expect(pasted.statusHistory).toHaveLength(1); // reseeded at paste, not inherited
+  });
+
+  it('cut removes the node and paste re-inserts it', () => {
+    get().newSibling();
+    const a = get().selectedId!;
+    get().setNodeContent(a, 'movable');
+    get().cutSelected();
+    expect(get().project.root.children).toHaveLength(0);
+
+    get().pasteAfterSelected();
+    expect(get().project.root.children).toHaveLength(1);
+    expect(get().project.root.children[0].content).toBe('movable');
+  });
+});
+
 describe('status history capture', () => {
   it('coalesces rapid status changes into the landed value', () => {
     get().newSibling();

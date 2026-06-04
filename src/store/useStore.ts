@@ -1,12 +1,15 @@
 import { create } from 'zustand';
-import type { Mode, ProjectFile } from '../model/types';
-import { createEmptyProject, createSampleProject } from '../model/factory';
+import type { Mode, ProjectFile, TaskNode } from '../model/types';
+import { createEmptyProject, createSampleProject, nowIso } from '../model/factory';
 import {
   adjacentVisible,
+  cloneNode,
   cloneProject,
   cycleValue,
   deleteNode,
   findNode,
+  insertSubtreeAfter,
+  reassignIds,
   indent,
   insertSiblingAfter,
   isEmpty,
@@ -58,10 +61,18 @@ import {
 // the bound file. Structural changes go through pure ops in model/tree.ts via the
 // private `apply` helper, which clones the project so React sees new references.
 
+/** A copied/cut node subtree held for pasting (SPEC.md §3). */
+export interface ClipboardItem {
+  node: TaskNode;
+  mode: 'copy' | 'cut';
+}
+
 export interface AppState {
   project: ProjectFile;
   selectedId: string | null;
   mode: Mode;
+  /** Node subtree on the internal clipboard, or null. */
+  clipboard: ClipboardItem | null;
 
   // Bound file / save status
   fileHandle: FileRef | null;
@@ -122,6 +133,11 @@ export interface AppState {
   setProjectName: (name: string) => void;
   setDueDateFor: (id: string, dueDate: string | null) => void;
   moveNode: (dragId: string, targetId: string, where: DropWhere) => void;
+
+  // Clipboard (copy/cut/paste a node subtree)
+  copySelected: () => void;
+  cutSelected: () => void;
+  pasteAfterSelected: () => void;
   undo: () => void;
   redo: () => void;
 
@@ -325,6 +341,7 @@ export const useStore = create<AppState>((set, get) => {
     project: createSampleProject(),
     selectedId: null,
     mode: 'selected',
+    clipboard: null,
 
     fileHandle: null,
     fileName: null,
@@ -532,6 +549,50 @@ export const useStore = create<AppState>((set, get) => {
     moveNode: (dragId, targetId, where) => {
       apply((root) => moveNodeRelative(root, dragId, targetId, where));
       set({ selectedId: dragId });
+    },
+
+    copySelected: () => {
+      const { selectedId, project } = get();
+      if (!selectedId) return;
+      const node = findNode(project.root.children, selectedId);
+      if (node) set({ clipboard: { node: cloneNode(node), mode: 'copy' } });
+    },
+
+    cutSelected: () => {
+      const { selectedId, project } = get();
+      if (!selectedId) return;
+      const node = findNode(project.root.children, selectedId);
+      if (!node) return;
+      const snapshot = cloneNode(node);
+      let nextSel: string | null = null;
+      apply((root) => {
+        nextSel = deleteNode(root, selectedId);
+      });
+      set({ clipboard: { node: snapshot, mode: 'cut' }, selectedId: nextSel, mode: 'selected' });
+    },
+
+    pasteAfterSelected: () => {
+      const clip = get().clipboard;
+      if (!clip) return;
+      const subtree = cloneNode(clip.node);
+      reassignIds(subtree);
+      // A copy is a fresh duplicate: drop tracked time + lifecycle history (seed a
+      // single status entry at paste-time) so analytics aren't double-counted. A
+      // cut keeps everything — it's the same work relocated.
+      if (clip.mode === 'copy') {
+        const ts = nowIso();
+        const reset = (n: TaskNode) => {
+          n.time = { accumulatedSeconds: 0, startedAt: null };
+          n.statusHistory = n.status ? [{ at: ts, status: n.status }] : [];
+          n.createdAt = ts;
+          n.updatedAt = ts;
+          n.children.forEach(reset);
+        };
+        reset(subtree);
+      }
+      const { selectedId } = get();
+      apply((root) => insertSubtreeAfter(root, selectedId, subtree));
+      set({ selectedId: subtree.id, mode: 'selected' });
     },
 
     cycleStatusFor: (id, dir = 1) => {

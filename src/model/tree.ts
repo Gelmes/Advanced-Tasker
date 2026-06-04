@@ -4,6 +4,7 @@
 // testing for all structural behaviour.
 
 import { createNode, nowIso } from './factory';
+import { newId } from './ids';
 import type { ProjectFile, TaskNode } from './types';
 
 interface Level {
@@ -258,4 +259,35 @@ export function cloneProject(project: ProjectFile): ProjectFile {
   return typeof sc === 'function'
     ? sc(project)
     : JSON.parse(JSON.stringify(project));
+}
+
+/** Deep clone a single node subtree (for the copy/cut clipboard). */
+export function cloneNode(node: TaskNode): TaskNode {
+  const sc = (globalThis as any).structuredClone;
+  return typeof sc === 'function' ? sc(node) : JSON.parse(JSON.stringify(node));
+}
+
+/** Give a node and all its descendants fresh ids (so a paste can't collide). */
+export function reassignIds(node: TaskNode): void {
+  node.id = newId();
+  for (const child of node.children) reassignIds(child);
+}
+
+/** Insert a prepared subtree as a sibling immediately after `targetId`. */
+export function insertSubtreeAfter(
+  root: TaskNode[],
+  targetId: string | null,
+  subtree: TaskNode,
+): void {
+  if (!targetId) {
+    root.push(subtree);
+    return;
+  }
+  const path = locate(root, targetId);
+  if (!path) {
+    root.push(subtree);
+    return;
+  }
+  const lvl = path[path.length - 1];
+  lvl.siblings.splice(lvl.index + 1, 0, subtree);
 }

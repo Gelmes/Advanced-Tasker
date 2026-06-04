@@ -121,6 +121,11 @@ Tree-op rules:
 - **Move up/down** reorders within the current sibling list only.
 - **Drag** (the `⠿` grip): drop **before**/**after** a target row, or **inside** it as
   its first child. Cannot drop a node into its own subtree.
+- **Copy / cut / paste** (`Ctrl/Cmd+C`/`X`/`V`): copy or cut a node *and its subtree* to
+  an internal clipboard; paste inserts it as a **sibling below** the selection (then `Tab`
+  to nest). Paste always assigns fresh ids. A **copy** is a fresh duplicate (tracked time
+  cleared, status history reseeded at paste); a **cut** preserves everything (a move).
+  Works across files. `Ctrl/Cmd+C` defers to the browser if you've selected text.
 - Deleting a node removes its entire subtree; selection falls to the previous sibling,
   else the parent.
 

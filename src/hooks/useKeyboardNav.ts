@@ -74,6 +74,20 @@ export function useKeyboardNav(): void {
 
       if (s.mode !== 'selected') return;
 
+      // Copy / cut / paste a node subtree (Cmd/Ctrl+C/X/V), selected mode only.
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey) {
+        const k = e.key.toLowerCase();
+        if (k === 'c') {
+          // Defer to the browser if the user has actually selected text.
+          const sel = typeof window !== 'undefined' ? window.getSelection?.() : null;
+          if (sel && sel.toString().length > 0) return;
+          consume();
+          return s.copySelected();
+        }
+        if (k === 'x') return consume(), s.cutSelected();
+        if (k === 'v') return consume(), s.pasteAfterSelected();
+      }
+
       // Vim navigation layer (opt-in). Falls through to the standard keymap for
       // any key it doesn't claim, so S/P/Space/Enter/Tab/Delete still work.
       if (s.vimNav) {

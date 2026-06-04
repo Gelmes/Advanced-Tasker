@@ -26,6 +26,17 @@ export function useKeyboardNav(): void {
         return;
       }
 
+      // Markdown emphasis (Cmd/Ctrl+B/I/E) — works while editing too.
+      if ((e.metaKey || e.ctrlKey) && !e.altKey) {
+        const k = e.key.toLowerCase();
+        const marker = k === 'b' ? '**' : k === 'i' ? '*' : k === 'e' ? '`' : null;
+        if (marker) {
+          consume();
+          s.toggleEmphasisSelected(marker);
+          return;
+        }
+      }
+
       // Don't hijack typing in any text field (node editor, title, status inputs).
       const t = e.target as HTMLElement | null;
       if (

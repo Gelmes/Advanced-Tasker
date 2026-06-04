@@ -25,6 +25,22 @@ const RULES: Rule[] = [
   },
 ];
 
+/**
+ * Toggle wrapping `text` in a marker (`**` bold, `*` italic, `` ` `` code). If the
+ * whole string is already wrapped in that exact marker it is unwrapped; otherwise
+ * it is wrapped. The italic check ignores bold (`**`) so they don't collide.
+ */
+export function toggleWrap(text: string, marker: string): string {
+  const wrapped =
+    text.length >= marker.length * 2 &&
+    text.startsWith(marker) &&
+    text.endsWith(marker) &&
+    !(marker === '*' && (text.startsWith('**') || text.endsWith('**')));
+  return wrapped
+    ? text.slice(marker.length, text.length - marker.length)
+    : `${marker}${text}${marker}`;
+}
+
 /** Split a line into inline segments, earliest-match wins, left to right. */
 export function parseInline(text: string): Segment[] {
   const out: Segment[] = [];

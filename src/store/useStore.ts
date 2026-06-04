@@ -21,6 +21,7 @@ import {
   type DropWhere,
 } from '../model/tree';
 import { newId } from '../model/ids';
+import { toggleWrap } from '../markdown/inline';
 import { bankTime } from '../model/time';
 import type { StatusDef } from '../model/types';
 import {
@@ -84,6 +85,8 @@ export interface AppState {
   deleteSelected: () => void;
   backspaceEmpty: () => void;
   setNodeContent: (id: string, content: string) => void;
+  /** Toggle wrapping the selected node's content in a markdown marker. */
+  toggleEmphasisSelected: (marker: string) => void;
   setProjectName: (name: string) => void;
   moveNode: (dragId: string, targetId: string, where: DropWhere) => void;
 
@@ -246,6 +249,15 @@ export const useStore = create<AppState>((set, get) => {
     },
 
     setNodeContent: (id, content) => apply((root) => setContent(root, id, content)),
+
+    toggleEmphasisSelected: (marker) => {
+      const { selectedId, project } = get();
+      if (!selectedId) return;
+      const node = findNode(project.root.children, selectedId);
+      if (!node) return;
+      const next = toggleWrap(node.content, marker);
+      apply((root) => setContent(root, selectedId, next));
+    },
 
     setProjectName: (name) => {
       applyProject((project) => {

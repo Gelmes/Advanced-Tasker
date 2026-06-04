@@ -1,5 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { parseInline } from './inline';
+import { parseInline, toggleWrap } from './inline';
+
+describe('toggleWrap', () => {
+  it('wraps plain text', () => {
+    expect(toggleWrap('hi', '**')).toBe('**hi**');
+    expect(toggleWrap('hi', '*')).toBe('*hi*');
+    expect(toggleWrap('hi', '`')).toBe('`hi`');
+  });
+
+  it('unwraps when already wrapped in the same marker', () => {
+    expect(toggleWrap('**hi**', '**')).toBe('hi');
+    expect(toggleWrap('`hi`', '`')).toBe('hi');
+  });
+
+  it('does not treat bold as italic', () => {
+    expect(toggleWrap('**hi**', '*')).toBe('***hi***'); // wraps, not unwraps
+  });
+});
 
 describe('parseInline', () => {
   it('returns a single text segment for plain content', () => {

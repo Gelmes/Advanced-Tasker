@@ -33,6 +33,14 @@ const SECTIONS: Section[] = [
     ],
   },
   {
+    title: 'Formatting (any mode)',
+    rows: [
+      ['Ctrl/Cmd+B', 'Toggle **bold** on the node'],
+      ['Ctrl/Cmd+I', 'Toggle *italic* on the node'],
+      ['Ctrl/Cmd+E', 'Toggle `code` on the node'],
+    ],
+  },
+  {
     title: 'Files & mouse',
     rows: [
       ['Ctrl/Cmd+S', 'Save'],

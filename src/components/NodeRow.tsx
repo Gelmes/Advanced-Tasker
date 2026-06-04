@@ -84,7 +84,13 @@ export function NodeRow({ node, depth, statuses, nowMs }: Props) {
   const inputRef = useRef<TextInputType>(null);
   const [editHeight, setEditHeight] = useState(LINE_HEIGHT);
   useEffect(() => {
-    if (isEditing) inputRef.current?.focus();
+    if (!isEditing) return;
+    const el = inputRef.current as any;
+    el?.focus?.();
+    // Place the caret at the end rather than the start (web textarea).
+    const len = node.content.length;
+    if (typeof el?.setSelectionRange === 'function') el.setSelectionRange(len, len);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditing]);
 
   const onContentPress = () => {
@@ -129,7 +135,7 @@ export function NodeRow({ node, depth, statuses, nowMs }: Props) {
         </View>
 
         <Pressable onPress={() => hasChildren && toggleCollapseFor(node.id)} hitSlop={4}>
-          <Text style={styles.twisty}>
+          <Text style={hasChildren ? styles.twisty : styles.leaf}>
             {hasChildren ? (node.collapsed ? '▸' : '▾') : '·'}
           </Text>
         </Pressable>
@@ -236,7 +242,8 @@ const styles = StyleSheet.create({
   dropAfter: { borderBottomWidth: 2, borderBottomColor: '#2563eb' },
   grip: { width: 14, alignItems: 'center', justifyContent: 'center', cursor: 'grab' } as any,
   gripText: { fontSize: 12, color: '#d1d5db' },
-  twisty: { width: 14, color: '#9ca3af', fontSize: 12, textAlign: 'center' },
+  twisty: { width: 18, color: '#6b7280', fontSize: 16, textAlign: 'center' },
+  leaf: { width: 18, color: '#d1d5db', fontSize: 12, textAlign: 'center' },
   statusDot: { width: 10, height: 10, borderRadius: 5 },
   statusDotEmpty: {
     width: 10,

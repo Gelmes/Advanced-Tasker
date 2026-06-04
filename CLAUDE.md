@@ -25,10 +25,19 @@ npx vitest run -t "outdent"
 
 # Verify the production web bundle builds (catches bundler/import errors):
 npx expo export --platform web   # output goes to dist/ (gitignored); rm -rf dist after
+
+# Desktop (Electron) — see DESKTOP.md:
+npm run desktop      # export web + open the app in a native Electron window
+npm run desktop:dist # build a Windows installer (needs Developer Mode; see DESKTOP.md)
 ```
 
 There is no separate lint step; `npm run typecheck` is the gate. `npm run android` /
 `npm run ios` exist from the scaffold but mobile is not a current target.
+
+The desktop wrapper is `electron/main.js`: it serves the exported `dist/` over a secure
+`app://` scheme (the File System Access API needs a secure context — `file://` isn't one),
+so all the web code runs unchanged in Chromium. Electron config is the `"build"` block in
+`package.json`.
 
 ## Architecture
 

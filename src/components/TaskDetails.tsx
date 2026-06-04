@@ -38,10 +38,33 @@ function fmtSpan(seconds: number | null): string {
   return hours ? `${days}d ${hours}h` : `${days}d`;
 }
 
-function Field({ label, value }: { label: string; value: string }) {
+/** A small ⓘ that shows `hint` as a native tooltip on hover (web). */
+function Info({ hint }: { hint: string }) {
+  return (
+    <Text
+      ref={(el) => {
+        if (el) {
+          try {
+            (el as any).title = hint;
+          } catch {
+            // non-web targets have no title attribute
+          }
+        }
+      }}
+      style={styles.info}
+    >
+      ⓘ
+    </Text>
+  );
+}
+
+function Field({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{label}</Text>
+      <View style={styles.fieldLabelWrap}>
+        <Text style={styles.fieldLabel}>{label}</Text>
+        {hint ? <Info hint={hint} /> : null}
+      </View>
       <Text style={styles.fieldValue}>{value}</Text>
     </View>
   );
@@ -111,12 +134,32 @@ export function TaskDetails() {
           </View>
 
           <View style={styles.section}>
-            <Field label="Effort (timer)" value={formatDuration(elapsedSeconds(node, nowMs))} />
+            <Field
+              label="Effort (timer)"
+              value={formatDuration(elapsedSeconds(node, nowMs))}
+              hint="Total time the start/stop timer ran on this task — not wall-clock."
+            />
             <Field label="Created" value={fmtDate(node.createdAt)} />
-            <Field label="Started" value={fmtDate(startedAt(node, kindOf))} />
-            <Field label="Done" value={fmtDate(completedAt(node, kindOf))} />
-            <Field label="Cycle time" value={fmtSpan(cycleTimeSeconds(node, kindOf))} />
-            <Field label="Lead time" value={fmtSpan(leadTimeSeconds(node, kindOf))} />
+            <Field
+              label="Started"
+              value={fmtDate(startedAt(node, kindOf))}
+              hint="When work began — the first time this entered an Active status (e.g. Doing)."
+            />
+            <Field
+              label="Done"
+              value={fmtDate(completedAt(node, kindOf))}
+              hint="When it was completed — the latest time it entered a Done status (cleared if reopened)."
+            />
+            <Field
+              label="Cycle time"
+              value={fmtSpan(cycleTimeSeconds(node, kindOf))}
+              hint="Active work duration: from Started to Done. How long the task took once work began."
+            />
+            <Field
+              label="Lead time"
+              value={fmtSpan(leadTimeSeconds(node, kindOf))}
+              hint="From Created to Done — includes time waiting in the backlog before work started."
+            />
           </View>
 
           {rollup && (
@@ -194,8 +237,10 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     textTransform: 'uppercase',
   },
-  field: { flexDirection: 'row', justifyContent: 'space-between' },
+  field: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  fieldLabelWrap: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   fieldLabel: { fontSize: 13, color: '#6b7280' },
+  info: { fontSize: 11, color: '#9ca3af', cursor: 'help' } as any,
   fieldValue: { fontSize: 13, color: '#111827', fontVariant: ['tabular-nums'] },
   dueInput: {
     fontSize: 13,

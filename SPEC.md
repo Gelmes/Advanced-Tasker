@@ -115,10 +115,11 @@ project title, status inputs), and `?` toggles the shortcuts reference.
 - **Rollup display:** each parent row shows summed tracked time, summed story points,
   and completion % of its subtree, derived live.
 - Indentation communicates depth; collapsed nodes hide their subtree and show a count.
-- **Title:** the project name is shown as an editable field in the outline header
-  (the on-disk file name is shown beneath it, read-only).
-- **Project sidebar:** a left slideout lists the projects in the open workspace folder;
-  click to focus one, or create a new one in the folder.
+- **Tabs:** open projects appear as tabs above the outline. Click an inactive tab to
+  switch; click the active tab to rename it inline; ✕ closes it. The title is shown
+  here only (not duplicated as a header or in the save indicator).
+- **Project sidebar:** a left slideout lists every project in the open workspace folder
+  (title only); click to focus one, or create a new one in the folder.
 
 ## 5. Architecture
 
@@ -135,8 +136,9 @@ project title, status inputs), and `?` toggles the shortcuts reference.
   first. A standalone single-file Open/Save As path also exists for files outside a
   folder. Auto-save is debounced on change.
 - **Components:** `ProjectSidebar` (folder switcher) · `WorkspaceBar` (folder/file
-  actions, statuses, shortcuts) · `OutlineView` (editable title) → recursive `NodeRow`
-  · `StatusManager` · `ShortcutsHelp` · `DragProvider` (drag-and-drop plumbing).
+  actions, statuses, shortcuts, save state) · `TabBar` (open projects + editable title)
+  · `OutlineView` → recursive `NodeRow` · `StatusManager` · `ShortcutsHelp` ·
+  `DragProvider` (web pointer-event drag-and-drop).
 
 ## 6. Milestones
 

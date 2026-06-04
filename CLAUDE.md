@@ -67,12 +67,17 @@ The app is a tree of nodes rendered as an indented outline. Entry is `index.ts` 
   status inputs) so typing is never intercepted. `useNow` ticks once a second only while a
   timer runs. `useAutosave` debounces writes back to the bound file.
 
-- **`src/components/`** — `ProjectSidebar` (folder/project switcher) · `WorkspaceBar`
-  (folder/file actions + Statuses + Shortcuts) · `OutlineView` (editable title) → recursive
-  `NodeRow` (twisty, drag grip, status dot, content, timer, points are independent click
-  targets) · `StatusManager` · `ShortcutsHelp` · `DragContext` (`DragProvider`/`useDrag`:
-  measures rows on drag start, maps pointer-Y to a before/inside/after drop, dispatches
-  `moveNode`).
+- **`src/components/`** — `ProjectSidebar` (folder/project switcher, title-only) ·
+  `WorkspaceBar` (folder/file actions + Statuses + Shortcuts + save state) · `TabBar` (open
+  projects; click inactive to switch, click active to rename inline, ✕ to close — the title
+  is shown *only* here) · `OutlineView` → recursive `NodeRow` (twisty, drag grip, status
+  dot, content, fixed-width timer + points so columns align) · `StatusManager` ·
+  `ShortcutsHelp` · `DragContext` (`DragProvider`/`useDrag`: **native web pointer events**,
+  not PanResponder — PanResponder doesn't capture the mouse on RNW; measures row rects on
+  drag start, maps pointer-Y to before/inside/after, dispatches `moveNode`).
+
+  Tabs are tracked in the store as `openTabs: string[]` (file names); `loadProject` adds a
+  tab and `closeTab` focuses a neighbour (or a blank project) when the active tab closes.
 
 - **`src/markdown/`** — a dependency-free inline tokenizer (`inline.ts`) + renderer for the
   single-line subset (bold/italic/`code`/links).

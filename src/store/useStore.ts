@@ -63,6 +63,8 @@ export interface AppState {
   workspaceDir: FileRef | null;
   workspaceName: string | null;
   projects: ProjectRef[];
+  /** File names of projects open as tabs, in tab order. */
+  openTabs: string[];
   sidebarOpen: boolean;
   helpOpen: boolean;
 
@@ -117,6 +119,7 @@ export interface AppState {
   refreshProjects: () => Promise<void>;
   switchProject: (fileName: string) => Promise<void>;
   newProjectInFolder: () => Promise<void>;
+  closeTab: (fileName: string) => void;
   restoreWorkspace: () => Promise<void>;
 }
 
@@ -160,6 +163,7 @@ export const useStore = create<AppState>((set, get) => {
     workspaceDir: null,
     workspaceName: null,
     projects: [],
+    openTabs: [],
     sidebarOpen: false,
     helpOpen: false,
 
@@ -357,7 +361,11 @@ export const useStore = create<AppState>((set, get) => {
       });
     },
 
-    loadProject: (project, handle, fileName) =>
+    loadProject: (project, handle, fileName) => {
+      const openTabs =
+        fileName && !get().openTabs.includes(fileName)
+          ? [...get().openTabs, fileName]
+          : get().openTabs;
       set({
         project,
         selectedId: null,
@@ -366,7 +374,9 @@ export const useStore = create<AppState>((set, get) => {
         fileName,
         dirty: false,
         error: null,
-      }),
+        openTabs,
+      });
+    },
 
     openProject: async () => {
       try {
@@ -469,6 +479,21 @@ export const useStore = create<AppState>((set, get) => {
         await persistWorkspace();
       } catch (e: any) {
         set({ error: e?.message ?? 'Failed to create project.' });
+      }
+    },
+
+    closeTab: (fileName) => {
+      const { openTabs, fileName: active } = get();
+      const index = openTabs.indexOf(fileName);
+      const remaining = openTabs.filter((t) => t !== fileName);
+      set({ openTabs: remaining });
+      if (fileName !== active) return;
+      // Closing the active tab: focus a neighbour, or fall back to a blank project.
+      if (remaining.length) {
+        const next = remaining[Math.min(index, remaining.length - 1)];
+        void get().switchProject(next);
+      } else {
+        get().newProject();
       }
     },
 

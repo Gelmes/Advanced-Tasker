@@ -1,6 +1,5 @@
-import { Fragment, useEffect, useMemo, useRef } from 'react';
+import { Fragment, useEffect, useRef } from 'react';
 import {
-  PanResponder,
   Pressable,
   StyleSheet,
   Text,
@@ -49,19 +48,21 @@ export function NodeRow({ node, depth, statuses, nowMs }: Props) {
   const cyclePointsFor = useStore((s) => s.cyclePointsFor);
   const toggleTimerFor = useStore((s) => s.toggleTimerFor);
 
-  const { register, beginDrag, updateDrag, endDrag, dragId, indicator } = useDrag();
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: () => true,
-        onPanResponderGrant: () => beginDrag(node.id),
-        onPanResponderMove: (_e, g) => updateDrag(g.moveY),
-        onPanResponderRelease: () => endDrag(),
-        onPanResponderTerminate: () => endDrag(),
-      }),
-    [node.id, beginDrag, updateDrag, endDrag],
-  );
+  const { register, startDrag, dragId, indicator } = useDrag();
+
+  // The grip starts a drag via a native pointerdown (web). preventDefault stops the
+  // browser from beginning a text selection.
+  const gripRef = useRef<any>(null);
+  useEffect(() => {
+    const el = gripRef.current;
+    if (!el?.addEventListener) return;
+    const onDown = (e: PointerEvent) => {
+      e.preventDefault();
+      startDrag(node.id, e.clientY);
+    };
+    el.addEventListener('pointerdown', onDown);
+    return () => el.removeEventListener('pointerdown', onDown);
+  }, [node.id, startDrag]);
 
   const status = statusFor(node, statuses);
   const isSelected = selectedId === node.id;
@@ -119,7 +120,7 @@ export function NodeRow({ node, depth, statuses, nowMs }: Props) {
           isDragging && styles.dragging,
         ]}
       >
-        <View style={styles.grip} {...panResponder.panHandlers}>
+        <View ref={gripRef} style={styles.grip}>
           <Text style={styles.gripText}>⠿</Text>
         </View>
 
@@ -253,13 +254,20 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   timer: {
-    paddingHorizontal: 6,
+    width: 66,
+    paddingHorizontal: 5,
     paddingVertical: 2,
     borderRadius: 5,
   },
   timerRunning: { backgroundColor: '#dcfce7' },
   timerText: { fontSize: 12, color: '#9ca3af', fontVariant: ['tabular-nums'] },
   timerTextRunning: { color: '#15803d', fontWeight: '600' },
-  points: { fontSize: 12, color: '#6b7280', fontVariant: ['tabular-nums'] },
+  points: {
+    width: 44,
+    textAlign: 'right',
+    fontSize: 12,
+    color: '#6b7280',
+    fontVariant: ['tabular-nums'],
+  },
   pointsEmpty: { color: '#d1d5db' },
 });

@@ -35,10 +35,10 @@ export function WorkspaceBar() {
     ? 'Saving…'
     : error
       ? error
-      : fileName
-        ? `${fileName}${dirty ? ' •' : ''}`
-        : dirty
-          ? 'Unsaved (no file)'
+      : dirty
+        ? '• Unsaved'
+        : fileName
+          ? 'Saved'
           : 'No file';
 
   return (

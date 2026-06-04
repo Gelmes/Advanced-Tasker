@@ -1,11 +1,21 @@
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import { Platform } from 'react-native';
 import type { DropWhere } from '../model/tree';
 import { useStore } from '../store/useStore';
 
-// Drag-and-drop plumbing for reordering rows (SPEC.md §3). Rows register a
-// measurable handle; on drag start we snapshot every row's window rect, then map
-// the pointer's Y to a target row + drop position (before / inside / after). The
-// actual move is the pure `moveNodeRelative` op, dispatched on release.
+// Drag-and-drop plumbing for reordering rows (SPEC.md §3). On web we use native
+// pointer events rather than PanResponder: PanResponder doesn't reliably capture
+// the mouse on react-native-web (the browser starts a text selection instead).
+// A row registers its DOM element; on drag we snapshot every row's client rect and
+// map the pointer's Y to a target row + drop position (before / inside / after).
+// The move itself is the pure `moveNodeRelative` op, dispatched on release.
 
 export interface Indicator {
   targetId: string;
@@ -14,15 +24,15 @@ export interface Indicator {
 
 interface Rect {
   id: string;
-  y: number;
+  top: number;
   height: number;
 }
 
 interface DragApi {
+  /** ref callback for a row's container element (used for hit-testing). */
   register: (id: string) => (node: any) => void;
-  beginDrag: (id: string) => void;
-  updateDrag: (absY: number) => void;
-  endDrag: () => void;
+  /** Begin a drag from the given node at an initial pointer Y (client coords). */
+  startDrag: (id: string, clientY: number) => void;
   dragId: string | null;
   indicator: Indicator | null;
 }
@@ -35,15 +45,6 @@ export function useDrag(): DragApi {
   return ctx;
 }
 
-function measure(node: any, cb: (y: number, h: number) => void): void {
-  if (node?.measureInWindow) {
-    node.measureInWindow((_x: number, y: number, _w: number, h: number) => cb(y, h));
-  } else if (node?.getBoundingClientRect) {
-    const r = node.getBoundingClientRect();
-    cb(r.top, r.height);
-  }
-}
-
 function sameIndicator(a: Indicator | null, b: Indicator | null): boolean {
   if (a === b) return true;
   if (!a || !b) return false;
@@ -53,7 +54,7 @@ function sameIndicator(a: Indicator | null, b: Indicator | null): boolean {
 export function DragProvider({ children }: { children: ReactNode }) {
   const moveNode = useStore((s) => s.moveNode);
 
-  const refs = useRef(new Map<string, any>());
+  const rows = useRef(new Map<string, any>());
   const rects = useRef<Rect[]>([]);
   const dragIdRef = useRef<string | null>(null);
   const indicatorRef = useRef<Indicator | null>(null);
@@ -63,30 +64,19 @@ export function DragProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback(
     (id: string) => (node: any) => {
-      if (node) refs.current.set(id, node);
-      else refs.current.delete(id);
+      if (node) rows.current.set(id, node);
+      else rows.current.delete(id);
     },
     [],
   );
 
-  const beginDrag = useCallback((id: string) => {
-    dragIdRef.current = id;
-    setDragId(id);
-    const snapshot: Rect[] = [];
-    for (const [rid, node] of refs.current.entries()) {
-      measure(node, (y, h) => snapshot.push({ id: rid, y, height: h }));
-    }
-    snapshot.sort((a, b) => a.y - b.y);
-    rects.current = snapshot;
-  }, []);
-
-  const updateDrag = useCallback((absY: number) => {
+  const computeIndicator = useCallback((clientY: number) => {
     const id = dragIdRef.current;
     if (!id) return;
-    const hit = rects.current.find((r) => absY >= r.y && absY <= r.y + r.height);
+    const hit = rects.current.find((r) => clientY >= r.top && clientY <= r.top + r.height);
     let next: Indicator | null = null;
     if (hit && hit.id !== id) {
-      const rel = (absY - hit.y) / hit.height;
+      const rel = (clientY - hit.top) / hit.height;
       const where: DropWhere = rel < 0.3 ? 'before' : rel > 0.7 ? 'after' : 'inside';
       next = { targetId: hit.id, where };
     }
@@ -96,19 +86,55 @@ export function DragProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const endDrag = useCallback(() => {
-    const id = dragIdRef.current;
-    const ind = indicatorRef.current;
-    if (id && ind) moveNode(id, ind.targetId, ind.where);
-    dragIdRef.current = null;
-    indicatorRef.current = null;
-    rects.current = [];
-    setDragId(null);
-    setIndicator(null);
-  }, [moveNode]);
+  const startDrag = useCallback(
+    (id: string, clientY: number) => {
+      if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+
+      const snapshot: Rect[] = [];
+      rows.current.forEach((node, rid) => {
+        if (node?.getBoundingClientRect) {
+          const r = node.getBoundingClientRect();
+          snapshot.push({ id: rid, top: r.top, height: r.height });
+        }
+      });
+      snapshot.sort((a, b) => a.top - b.top);
+      rects.current = snapshot;
+
+      dragIdRef.current = id;
+      setDragId(id);
+      computeIndicator(clientY);
+
+      const body = document.body;
+      const prevSelect = body.style.userSelect;
+      body.style.userSelect = 'none';
+
+      const onMove = (e: PointerEvent) => {
+        e.preventDefault();
+        computeIndicator(e.clientY);
+      };
+      const finish = () => {
+        const did = dragIdRef.current;
+        const ind = indicatorRef.current;
+        if (did && ind) moveNode(did, ind.targetId, ind.where);
+        dragIdRef.current = null;
+        indicatorRef.current = null;
+        rects.current = [];
+        setDragId(null);
+        setIndicator(null);
+        body.style.userSelect = prevSelect;
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', finish);
+        document.removeEventListener('pointercancel', finish);
+      };
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', finish);
+      document.addEventListener('pointercancel', finish);
+    },
+    [computeIndicator, moveNode],
+  );
 
   return (
-    <DragCtx.Provider value={{ register, beginDrag, updateDrag, endDrag, dragId, indicator }}>
+    <DragCtx.Provider value={{ register, startDrag, dragId, indicator }}>
       {children}
     </DragCtx.Provider>
   );

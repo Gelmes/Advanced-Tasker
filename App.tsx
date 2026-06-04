@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { SafeAreaView, StyleSheet, View } from 'react-native';
 import { OutlineView } from './src/components/OutlineView';
 import { ProjectSidebar } from './src/components/ProjectSidebar';
+import { TabBar } from './src/components/TabBar';
 import { WorkspaceBar } from './src/components/WorkspaceBar';
 import { DragProvider } from './src/components/DragContext';
 import { useAutosave } from './src/hooks/useAutosave';
@@ -25,6 +26,7 @@ export default function App() {
         <DragProvider>
           <View style={styles.main}>
             <WorkspaceBar />
+            <TabBar />
             <OutlineView />
           </View>
         </DragProvider>

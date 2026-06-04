@@ -45,9 +45,6 @@ export function ProjectSidebar() {
                 <Text style={[styles.itemText, isActive && styles.itemTextActive]} numberOfLines={1}>
                   {p.name}
                 </Text>
-                <Text style={styles.itemFile} numberOfLines={1}>
-                  {p.fileName}
-                </Text>
               </Pressable>
             );
           })
@@ -90,7 +87,6 @@ const styles = StyleSheet.create({
   itemPressed: { backgroundColor: '#e5e7eb' },
   itemText: { fontSize: 13, color: '#374151' },
   itemTextActive: { color: '#3730a3', fontWeight: '600' },
-  itemFile: { fontSize: 10, color: '#9ca3af', marginTop: 1 },
   footer: {
     padding: 8,
     borderTopWidth: 1,

@@ -256,7 +256,11 @@ const styles = StyleSheet.create({
     padding: 0,
     margin: 0,
     borderWidth: 0,
+    borderColor: 'transparent',
     outlineWidth: 0,
+    outlineStyle: 'none',
+    boxShadow: 'none',
+    backgroundColor: 'transparent',
     textAlignVertical: 'top',
   } as any,
   rollup: {

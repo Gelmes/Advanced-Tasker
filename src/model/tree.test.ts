@@ -149,6 +149,13 @@ describe('cycleValue', () => {
   it('treats an unknown current as the start of the ring', () => {
     expect(cycleValue(99, [1, 2])).toBe(1);
   });
+
+  it('cycles backward with dir -1', () => {
+    const scale = [1, 2, 3];
+    expect(cycleValue(null, scale, -1)).toBe(3); // wrap back to last
+    expect(cycleValue(2, scale, -1)).toBe(1);
+    expect(cycleValue(1, scale, -1)).toBeNull();
+  });
 });
 
 describe('setStatus / setStoryPoints', () => {

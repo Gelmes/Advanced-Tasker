@@ -227,13 +227,17 @@ export function setStoryPoints(root: TaskNode[], id: string, points: number | nu
  * Next value in a cycle through [null, ...values], wrapping back to null after the
  * last value. Shared by status and story-point cycling.
  */
-export function cycleValue<T>(current: T | null, values: T[]): T | null {
+export function cycleValue<T>(
+  current: T | null,
+  values: T[],
+  dir: 1 | -1 = 1,
+): T | null {
   const ring: (T | null)[] = [null, ...values];
   const i = ring.findIndex((v) => v === current);
   // Unknown current: behave as if starting from null, so the next value is the
   // first real value rather than wrapping to null.
   const from = i < 0 ? 0 : i;
-  return ring[(from + 1) % ring.length];
+  return ring[(from + dir + ring.length) % ring.length];
 }
 
 export function setCollapsed(root: TaskNode[], id: string, collapsed: boolean): void {

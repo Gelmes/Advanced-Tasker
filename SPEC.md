@@ -88,8 +88,8 @@ when selected.
 | `Tab` / `Shift+Tab` — indent / outdent         | `Backspace` on empty node — delete + select prev |
 | `Alt+↑` / `Alt+↓` — move node among siblings   |                                                  |
 | `Space` — start/stop timer on the node         |                                                  |
-| `S` — set/cycle status (promotes note → task)  |                                                  |
-| `P` — set story points                         |                                                  |
+| `S` / `Shift+S` — cycle status fwd/back (promotes) |                                              |
+| `P` / `Shift+P` — cycle story points fwd/back   |                                                  |
 | `Delete` — delete node (and its children)      |                                                  |
 
 Tree-op rules:

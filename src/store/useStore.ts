@@ -87,12 +87,12 @@ export interface AppState {
   setProjectName: (name: string) => void;
   moveNode: (dragId: string, targetId: string, where: DropWhere) => void;
 
-  // Status & story points
-  cycleStatusFor: (id: string) => void;
-  cycleStatusSelected: () => void;
+  // Status & story points (dir +1 forward, -1 backward)
+  cycleStatusFor: (id: string, dir?: 1 | -1) => void;
+  cycleStatusSelected: (dir?: 1 | -1) => void;
   setStatusFor: (id: string, status: string | null) => void;
-  cyclePointsFor: (id: string) => void;
-  cyclePointsSelected: () => void;
+  cyclePointsFor: (id: string, dir?: 1 | -1) => void;
+  cyclePointsSelected: (dir?: 1 | -1) => void;
   setPointsFor: (id: string, points: number | null) => void;
 
   // Timer (single active node, SPEC.md §2)
@@ -267,35 +267,36 @@ export const useStore = create<AppState>((set, get) => {
       set({ selectedId: dragId });
     },
 
-    cycleStatusFor: (id) => {
+    cycleStatusFor: (id, dir = 1) => {
       const { project } = get();
       const node = findNode(project.root.children, id);
       if (!node) return;
       const next = cycleValue(
         node.status,
         project.statuses.map((s) => s.id),
+        dir,
       );
       apply((root) => setStatus(root, id, next));
     },
 
-    cycleStatusSelected: () => {
+    cycleStatusSelected: (dir = 1) => {
       const { selectedId } = get();
-      if (selectedId) get().cycleStatusFor(selectedId);
+      if (selectedId) get().cycleStatusFor(selectedId, dir);
     },
 
     setStatusFor: (id, status) => apply((root) => setStatus(root, id, status)),
 
-    cyclePointsFor: (id) => {
+    cyclePointsFor: (id, dir = 1) => {
       const { project } = get();
       const node = findNode(project.root.children, id);
       if (!node) return;
-      const next = cycleValue(node.storyPoints, project.pointScale);
+      const next = cycleValue(node.storyPoints, project.pointScale, dir);
       apply((root) => setStoryPoints(root, id, next));
     },
 
-    cyclePointsSelected: () => {
+    cyclePointsSelected: (dir = 1) => {
       const { selectedId } = get();
-      if (selectedId) get().cyclePointsFor(selectedId);
+      if (selectedId) get().cyclePointsFor(selectedId, dir);
     },
 
     setPointsFor: (id, points) => apply((root) => setStoryPoints(root, id, points)),

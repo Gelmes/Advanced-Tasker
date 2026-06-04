@@ -69,10 +69,12 @@ export function useKeyboardNav(): void {
           return consume(), s.toggleTimerSelected();
         case 's':
         case 'S':
-          return consume(), s.cycleStatusSelected();
+          // Shift+S cycles statuses backward.
+          return consume(), s.cycleStatusSelected(e.shiftKey ? -1 : 1);
         case 'p':
         case 'P':
-          return consume(), s.cyclePointsSelected();
+          // Shift+P cycles story points backward.
+          return consume(), s.cyclePointsSelected(e.shiftKey ? -1 : 1);
         case 'e':
         case 'F2':
           return consume(), s.editSelected();

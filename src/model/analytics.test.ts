@@ -1,13 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
+  averageWeeklyThroughput,
   burndownSeries,
   burnupSeries,
   collectTasks,
   cycleItems,
+  dailyThroughput,
   dayRange,
   median,
+  monteCarloForecast,
   percentile,
   statusKindAsOf,
+  weeklyBuckets,
+  type BurnPoint,
 } from './analytics';
 import type { KindOf } from './lifecycle';
 import type { ProjectFile } from './types';
@@ -71,5 +76,36 @@ describe('cycleItems + stats', () => {
     expect(median([3, 1, 2])).toBe(2);
     expect(median([4, 1, 2, 3])).toBe(2.5);
     expect(percentile([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 0.85)).toBe(9);
+  });
+});
+
+describe('throughput + forecast', () => {
+  // Synthetic burnup: done climbs 0,2,2,5 over 4 days (deltas 2,0,3).
+  const bp = (done: number, day: number): BurnPoint => ({ day, scope: 10, done });
+  const synth = [bp(0, 0), bp(2, 1), bp(2, 2), bp(5, 3)];
+
+  it('derives positive daily throughput', () => {
+    expect(dailyThroughput(synth)).toEqual([0, 2, 0, 3]);
+  });
+
+  it('averages weekly throughput', () => {
+    // total 5 over 4 days → (5/4)*7
+    expect(averageWeeklyThroughput(dailyThroughput(synth))).toBeCloseTo((5 / 4) * 7);
+  });
+
+  it('buckets throughput into weeks', () => {
+    const tenDays = Array.from({ length: 10 }, (_, i) => bp(i, i)); // 1/day
+    expect(weeklyBuckets(tenDays)).toHaveLength(2); // 7 + 3
+  });
+
+  it('forecasts deterministically with a fixed rng', () => {
+    // rng always 0 → always samples daily[0]=4 → 12 points needs 3 days.
+    const f = monteCarloForecast(12, [4, 0, 0], 200, () => 0)!;
+    expect(f.p50Days).toBe(3);
+    expect(f.p85Days).toBe(3);
+  });
+
+  it('returns null when there is no throughput', () => {
+    expect(monteCarloForecast(5, [0, 0, 0], 100, () => 0)).toBeNull();
   });
 });

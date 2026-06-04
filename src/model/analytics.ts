@@ -131,3 +131,75 @@ export function percentile(nums: number[], p: number): number | null {
 export function mean(nums: number[]): number | null {
   return nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : null;
 }
+
+// --- Throughput & forecasting ------------------------------------------------
+
+/** Points completed each day (positive deltas of the burnup done-series). */
+export function dailyThroughput(burnup: BurnPoint[]): number[] {
+  const out: number[] = [];
+  let prev = 0;
+  for (const p of burnup) {
+    out.push(Math.max(0, p.done - prev));
+    prev = p.done;
+  }
+  return out;
+}
+
+export interface WeekBucket {
+  weekStart: number;
+  points: number;
+}
+
+/** Completed points grouped into 7-day buckets aligned to the first day. */
+export function weeklyBuckets(burnup: BurnPoint[]): WeekBucket[] {
+  const daily = dailyThroughput(burnup);
+  const buckets: WeekBucket[] = [];
+  for (let i = 0; i < burnup.length; i++) {
+    const wk = Math.floor(i / 7);
+    if (!buckets[wk]) buckets[wk] = { weekStart: burnup[i].day, points: 0 };
+    buckets[wk].points += daily[i];
+  }
+  return buckets.filter(Boolean);
+}
+
+/** Average points completed per 7-day week over the observed window. */
+export function averageWeeklyThroughput(daily: number[]): number {
+  if (!daily.length) return 0;
+  return (daily.reduce((a, b) => a + b, 0) / daily.length) * 7;
+}
+
+export interface Forecast {
+  p50Days: number;
+  p85Days: number;
+}
+
+/**
+ * Monte-Carlo finish forecast: sample observed daily throughput (with replacement)
+ * until `remaining` points are burned down, repeated `runs` times. Returns the day
+ * counts at the 50th and 85th percentiles. Null when there's no throughput to
+ * sample. `rng` is injectable for deterministic tests.
+ */
+export function monteCarloForecast(
+  remaining: number,
+  daily: number[],
+  runs = 1000,
+  rng: () => number = Math.random,
+): Forecast | null {
+  if (remaining <= 0) return { p50Days: 0, p85Days: 0 };
+  if (!daily.length || !daily.some((d) => d > 0)) return null;
+
+  const MAX_DAYS = 365 * 3;
+  const results: number[] = [];
+  for (let r = 0; r < runs; r++) {
+    let acc = 0;
+    let days = 0;
+    while (acc < remaining && days < MAX_DAYS) {
+      acc += daily[Math.floor(rng() * daily.length)] ?? 0;
+      days++;
+    }
+    results.push(days);
+  }
+  results.sort((a, b) => a - b);
+  const at = (p: number) => results[Math.min(results.length - 1, Math.floor(p * results.length))];
+  return { p50Days: at(0.5), p85Days: at(0.85) };
+}

@@ -2,11 +2,15 @@ import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNow } from '../../hooks/useNow';
 import {
+  averageWeeklyThroughput,
   burndownSeries,
   burnupSeries,
   collectTasks,
   cycleItems,
+  dailyThroughput,
   dayRange,
+  monteCarloForecast,
+  weeklyBuckets,
 } from '../../model/analytics';
 import type { KindOf } from '../../model/lifecycle';
 import { findNode } from '../../model/tree';
@@ -14,10 +18,11 @@ import type { TaskNode } from '../../model/types';
 import { useStore } from '../../store/useStore';
 import { CycleTimeChart } from './CycleTimeChart';
 import { LineChart, type Series } from './LineChart';
+import { ThroughputChart } from './ThroughputChart';
 
 const CHART_W = 660;
-const CHART_H = 320;
-type Tab = 'burnup' | 'burndown' | 'cycle';
+const CHART_H = 300;
+type Tab = 'burnup' | 'burndown' | 'throughput' | 'cycle';
 
 const fmtMD = (ms: number) => {
   const d = new Date(ms);
@@ -53,6 +58,7 @@ export function ChartsModal({ visible, onClose }: Props) {
   const selectedId = useStore((s) => s.selectedId);
   const nowMs = useNow();
   const [tab, setTab] = useState<Tab>('burnup');
+  const [chartWidth, setChartWidth] = useState(CHART_W);
 
   // Scope = the selected subtree (if it has children), else the whole project.
   const selected = selectedId ? findNode(project.root.children, selectedId) : null;
@@ -85,6 +91,13 @@ export function ChartsModal({ visible, onClose }: Props) {
   const dueMs = scopeNode.dueDate ? Date.parse(`${scopeNode.dueDate}T00:00:00.000Z`) : null;
   const burndown = burndownSeries(burnup, dueMs);
   const cycle = cycleItems(tasks, kindOf);
+
+  const daily = dailyThroughput(burnup);
+  const avgWeekly = averageWeeklyThroughput(daily);
+  const last = burnup[burnup.length - 1];
+  const remaining = last ? last.scope - last.done : 0;
+  const forecast = monteCarloForecast(remaining, daily, 500);
+  const buckets = weeklyBuckets(burnup);
 
   const xDomain: [number, number] = [days[0] ?? nowMs, days[days.length - 1] ?? nowMs];
   const step = Math.max(1, Math.ceil(days.length / 6));
@@ -121,26 +134,37 @@ export function ChartsModal({ visible, onClose }: Props) {
           </View>
 
           <View style={styles.tabs}>
-            {(['burnup', 'burndown', 'cycle'] as Tab[]).map((t) => (
+            {(['burnup', 'burndown', 'throughput', 'cycle'] as Tab[]).map((t) => (
               <Pressable
                 key={t}
                 onPress={() => setTab(t)}
                 style={[styles.tab, tab === t && styles.tabActive]}
               >
                 <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
-                  {t === 'burnup' ? 'Burnup' : t === 'burndown' ? 'Burndown' : 'Cycle time'}
+                  {t === 'burnup'
+                    ? 'Burnup'
+                    : t === 'burndown'
+                      ? 'Burndown'
+                      : t === 'throughput'
+                        ? 'Throughput'
+                        : 'Cycle time'}
                 </Text>
               </Pressable>
             ))}
           </View>
 
-          <ScrollView contentContainerStyle={styles.body}>
+          <ScrollView
+            contentContainerStyle={styles.body}
+            onLayout={(e) =>
+              setChartWidth(Math.max(320, Math.floor(e.nativeEvent.layout.width)))
+            }
+          >
             {!hasData ? (
               <Text style={styles.empty}>No tasks in this scope yet.</Text>
             ) : tab === 'burnup' ? (
               <>
                 <LineChart
-                  width={CHART_W}
+                  width={chartWidth}
                   height={CHART_H}
                   series={burnupSeriesData}
                   xDomain={xDomain}
@@ -157,7 +181,7 @@ export function ChartsModal({ visible, onClose }: Props) {
             ) : tab === 'burndown' ? (
               <>
                 <LineChart
-                  width={CHART_W}
+                  width={chartWidth}
                   height={CHART_H}
                   series={burndownSeriesData}
                   xDomain={xDomain}
@@ -176,6 +200,14 @@ export function ChartsModal({ visible, onClose }: Props) {
                   </Text>
                 )}
               </>
+            ) : tab === 'throughput' ? (
+              <ThroughputChart
+                buckets={buckets}
+                avgWeekly={avgWeekly}
+                remaining={remaining}
+                forecast={forecast}
+                nowMs={nowMs}
+              />
             ) : (
               <CycleTimeChart items={cycle} />
             )}
@@ -195,8 +227,8 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   panel: {
-    width: CHART_W + 32,
-    maxWidth: '100%',
+    width: '92%',
+    maxWidth: 960,
     maxHeight: '90%',
     backgroundColor: '#ffffff',
     borderRadius: 12,

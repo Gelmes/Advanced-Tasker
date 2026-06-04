@@ -79,13 +79,15 @@ cleared by a reopen), and cycle/lead time — keyed off *kind*, so cycling among
 statuses doesn't move the numbers. `Ctrl+Z` reverts a status change and its log entry
 together.
 
-**Charts** (the 📊 toolbar button) open a modal scoped to the selected subtree (or the
-whole project): **Burnup** (scope vs done over time), **Burndown** (remaining vs an ideal
-line anchored to an optional per-node `dueDate`), and **Cycle time** (per-task bars +
-median/p85/avg). Burnup/burndown *replay* the status history per day, so a task counts as
-done on a day only if its latest transition as of that day was a done-kind — reopens are
-reflected over time. All series are derived in `model/analytics.ts` (pure + tested against
-the demo project) and drawn with `react-native-svg`.
+**Charts** (the 📊 toolbar button) open a responsive modal scoped to the selected subtree
+(or the whole project): **Burnup** (scope vs done over time), **Burndown** (remaining vs an
+ideal line anchored to an optional per-node `dueDate`), **Throughput** (completed points per
+week + a Monte-Carlo finish forecast giving p50/p85 dates from sampled daily throughput),
+and **Cycle time** (per-task bars + median/p85/avg). Burnup/burndown/throughput *replay* the
+status history per day, so a task counts as done on a day only if its latest transition as
+of that day was a done-kind — reopens are reflected over time. All series are derived in
+`model/analytics.ts` (pure + tested against the demo project; the forecast RNG is injectable
+for determinism) and drawn with `react-native-svg` (line charts) / Views (bars).
 
 **`done` completion:** a task counts as complete when its status is of kind `done`.
 Completion % of a subtree = complete tasks / total tasks

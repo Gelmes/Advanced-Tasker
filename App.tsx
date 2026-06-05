@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { SafeAreaView, StyleSheet, View } from 'react-native';
+import { Platform, SafeAreaView, StyleSheet, View } from 'react-native';
 import { OutlineView } from './src/components/OutlineView';
 import { ProjectSidebar } from './src/components/ProjectSidebar';
 import { TabBar } from './src/components/TabBar';
@@ -18,6 +18,18 @@ export default function App() {
   // Reopen the last workspace folder if it's still permitted.
   useEffect(() => {
     void useStore.getState().restoreWorkspace();
+  }, []);
+
+  // The app shows its own selection (the row box-shadow), so suppress the browser's
+  // focus outline that otherwise sticks on the last-clicked row as you navigate.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const style = document.createElement('style');
+    style.textContent = ':focus, :focus-visible { outline: none !important; }';
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
   }, []);
 
   return (

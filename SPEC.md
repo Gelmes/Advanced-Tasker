@@ -36,6 +36,7 @@ time from the subtree — never stored**.
   "name": "My Project",
   "statuses": [                       // fully user-configurable; kind drives analytics
     { "id": "todo",    "label": "To Do",   "color": "#888888", "kind": "todo" },
+    { "id": "next",    "label": "Next",    "color": "#f59e0b", "kind": "todo" },
     { "id": "doing",   "label": "Doing",   "color": "#3b82f6", "kind": "active" },
     { "id": "blocked", "label": "Blocked", "color": "#ef4444", "kind": "active" },
     { "id": "done",    "label": "Done",    "color": "#22c55e", "kind": "done" }

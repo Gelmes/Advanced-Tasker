@@ -157,6 +157,8 @@ export interface AppState {
   addStatus: () => void;
   updateStatus: (id: string, patch: Partial<Omit<StatusDef, 'id'>>) => void;
   removeStatus: (id: string) => void;
+  /** Reorder a status up (-1) or down (+1) — also changes the S-key cycle order. */
+  moveStatus: (id: string, dir: -1 | 1) => void;
 
   // Files / single project
   newProject: () => void;
@@ -677,6 +679,15 @@ export const useStore = create<AppState>((set, get) => {
         walk(project.root.children, (n) => {
           if (n.status === id) n.status = null;
         });
+      }),
+
+    moveStatus: (id, dir) =>
+      applyProject((project) => {
+        const arr = project.statuses;
+        const i = arr.findIndex((s) => s.id === id);
+        const j = i + dir;
+        if (i < 0 || j < 0 || j >= arr.length) return;
+        [arr[i], arr[j]] = [arr[j], arr[i]];
       }),
 
     newProject: () => {

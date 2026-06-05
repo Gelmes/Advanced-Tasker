@@ -11,6 +11,8 @@ export interface FolderEntry {
   dirHandle: FileRef;
   /** File name of the project that was focused, to restore on reopen. */
   lastActive: string | null;
+  /** File names open as tabs, to restore on reopen. */
+  openTabs?: string[];
   lastOpened: number;
 }
 

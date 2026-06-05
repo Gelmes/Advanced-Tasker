@@ -89,8 +89,11 @@ function createWindow() {
 
 app.whenReady().then(() => {
   protocol.handle(SCHEME, serve);
-  // This is a local, single-user app — grant File System Access permission prompts.
+  // This is a local, single-user app — grant File System Access fully so remembered
+  // folders stay authorized across restarts (queryPermission returns 'granted'), and
+  // pickers don't prompt for permission.
   session.defaultSession.setPermissionRequestHandler((_wc, _permission, cb) => cb(true));
+  session.defaultSession.setPermissionCheckHandler(() => true);
   createWindow();
 
   app.on('activate', () => {

@@ -177,10 +177,12 @@ resets history.
   (selected vs. editing). Single source of truth for shortcuts.
 - **Workspace = a folder of `.json` projects.** Opening a folder (File System Access
   directory handle) lists every `.json` as a project; each file is one project. The
-  directory handle is persisted (IndexedDB) so the same folder + last-open project
-  reopen on startup when still permitted. Switching projects saves the current one
-  first. A standalone single-file Open/Save As path also exists for files outside a
-  folder. Auto-save is debounced on change.
+  directory handle, its **open tabs**, and last-open project are persisted (IndexedDB)
+  and reopened on startup when still permitted — so you return to the files you had open,
+  not the sample. (The desktop app grants the FSA permission so this is automatic; in a
+  browser the permission resets per session, so the sidebar opens to the remembered
+  folder for one-click reopen.) Switching projects saves the current one first. A
+  standalone single-file Open/Save As path also exists. Auto-save is debounced.
 - **Components:** `ProjectSidebar` (folder switcher) · `WorkspaceBar` (folder/file
   actions, statuses, shortcuts, save state) · `TabBar` (open projects + editable title)
   · `OutlineView` → recursive `NodeRow` · `StatusManager` · `ShortcutsHelp` ·

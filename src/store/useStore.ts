@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { Mode, ProjectFile, TaskNode } from '../model/types';
-import { createEmptyProject, createSampleProject, nowIso } from '../model/factory';
+import { createEmptyProject, nowIso } from '../model/factory';
 import {
   adjacentVisible,
   cloneNode,
@@ -303,32 +303,38 @@ export const useStore = create<AppState>((set, get) => {
     });
   };
 
-  /** Update the current folder's entry (last-active project + recency) for reopen. */
+  /** Update the current folder's entry (open tabs + last-active + recency) for reopen. */
   const persistCurrentFolder = async () => {
-    const { currentFolderId, workspaceDir, workspaceName, fileName } = get();
+    const { currentFolderId, workspaceDir, workspaceName, fileName, openTabs } = get();
     if (!currentFolderId || !workspaceDir) return;
     await putFolder({
       id: currentFolderId,
       name: workspaceName ?? 'Workspace',
       dirHandle: workspaceDir,
       lastActive: fileName,
+      openTabs,
       lastOpened: Date.now(),
     });
     await get().refreshFolders();
   };
 
-  /** Load a folder's projects and focus its last-active (or first) project. */
+  /** Load a folder's projects, restore its tabs, and focus the last-active project. */
   const enterFolder = async (entry: FolderEntry) => {
     const projects = await listProjects(entry.dirHandle);
+    const available = new Set(projects.map((p) => p.fileName));
+    // Restore previously-open tabs that still exist in the folder.
+    const tabs = (entry.openTabs ?? []).filter((t) => available.has(t));
     set({
       workspaceDir: entry.dirHandle,
       workspaceName: entry.name,
       currentFolderId: entry.id,
       projects,
+      openTabs: tabs,
       sidebarOpen: true,
       error: null,
     });
-    const target = projects.find((p) => p.fileName === entry.lastActive) ?? projects[0];
+    const target =
+      projects.find((p) => p.fileName === entry.lastActive) ?? projects[0];
     if (target) await get().switchProject(target.fileName);
     else await persistCurrentFolder();
     await get().rebuildFolderIndex();
@@ -340,7 +346,7 @@ export const useStore = create<AppState>((set, get) => {
   };
 
   return {
-    project: createSampleProject(),
+    project: createEmptyProject('Untitled'),
     selectedId: null,
     mode: 'selected',
     clipboard: null,
@@ -818,6 +824,7 @@ export const useStore = create<AppState>((set, get) => {
           name: dir.name ?? 'Workspace',
           dirHandle: dir,
           lastActive: existing?.lastActive ?? null,
+          openTabs: existing?.openTabs,
           lastOpened: Date.now(),
         };
         await putFolder(entry);
@@ -843,8 +850,7 @@ export const useStore = create<AppState>((set, get) => {
           return;
         }
         await saveIfDirty();
-        set({ openTabs: [] }); // tabs are per-folder
-        await enterFolder(entry);
+        await enterFolder(entry); // restores that folder's own tabs
       } catch (e: any) {
         set({ error: e?.message ?? 'Failed to open folder.' });
       }
@@ -900,13 +906,17 @@ export const useStore = create<AppState>((set, get) => {
       const index = openTabs.indexOf(fileName);
       const remaining = openTabs.filter((t) => t !== fileName);
       set({ openTabs: remaining });
-      if (fileName !== active) return;
+      if (fileName !== active) {
+        void persistCurrentFolder(); // remember the reduced tab set
+        return;
+      }
       // Closing the active tab: focus a neighbour, or fall back to a blank project.
       if (remaining.length) {
         const next = remaining[Math.min(index, remaining.length - 1)];
-        void get().switchProject(next);
+        void get().switchProject(next); // persists
       } else {
         get().newProject();
+        void persistCurrentFolder();
       }
     },
 
@@ -920,6 +930,9 @@ export const useStore = create<AppState>((set, get) => {
             return;
           }
         }
+        // None auto-restored (e.g. a browser reset folder permission). Show the
+        // sidebar so the remembered folder is one click away.
+        if (get().folders.length) set({ sidebarOpen: true });
       } catch {
         // A failed restore is non-fatal; the user can open a folder manually.
       }

@@ -7,6 +7,7 @@
 const { app, BrowserWindow, protocol, shell, session } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs/promises');
+const fsSync = require('node:fs');
 
 const SCHEME = 'app';
 
@@ -28,8 +29,11 @@ const MIME = {
   '.map': 'application/json',
 };
 
-// ../dist relative to this file — works both unpackaged and inside the asar.
-const DIST = path.join(__dirname, '..', 'dist');
+// Locate the exported web bundle: beside main.js (portable build) or one level up
+// (dev run + electron-builder asar).
+const DIST = [path.join(__dirname, 'dist'), path.join(__dirname, '..', 'dist')].find(
+  (p) => fsSync.existsSync(p),
+) ?? path.join(__dirname, '..', 'dist');
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -58,6 +62,11 @@ async function serve(request) {
   }
 }
 
+const ICON = [
+  path.join(__dirname, 'icon.ico'),
+  path.join(__dirname, '..', 'build', 'icon.ico'),
+].find((p) => fsSync.existsSync(p));
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1280,
@@ -65,6 +74,7 @@ function createWindow() {
     title: 'Advanced Tasker',
     autoHideMenuBar: true,
     backgroundColor: '#ffffff',
+    ...(ICON ? { icon: ICON } : {}),
     webPreferences: { contextIsolation: true, nodeIntegration: false },
   });
 

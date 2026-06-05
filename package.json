@@ -14,9 +14,12 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@electron/packager": "^20.0.1",
     "@types/react": "~19.2.2",
     "electron": "^42.3.3",
     "electron-builder": "^26.8.1",
+    "png-to-ico": "^3.0.1",
+    "sharp": "^0.34.5",
     "typescript": "~6.0.3",
     "vitest": "^4.1.8"
   },
@@ -29,7 +32,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "export:web": "expo export --platform web",
+    "icon": "node scripts/gen-icon.mjs",
     "desktop": "npm run export:web && electron electron/main.js",
+    "desktop:portable": "node scripts/build-portable.mjs",
     "desktop:dist": "npm run export:web && electron-builder --win"
   },
   "build": {
@@ -47,7 +52,8 @@
       "output": "release"
     },
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": false,

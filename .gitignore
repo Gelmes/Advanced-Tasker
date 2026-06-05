@@ -11,6 +11,7 @@ expo-env.d.ts
 
 # Electron / desktop build output
 release/
+build/portable-app/
 
 # Native
 .kotlin/

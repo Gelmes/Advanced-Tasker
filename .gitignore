@@ -46,3 +46,6 @@ yarn-error.*
 
 # local editor/agent settings
 .claude/settings.local.json
+
+# graphify generated knowledge graph (regenerable artifact)
+graphify-out/

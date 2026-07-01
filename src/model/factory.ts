@@ -31,6 +31,7 @@ export function createNode(content = ''): TaskNode {
 export function createEmptyProject(name = 'Untitled'): ProjectFile {
   return {
     version: FILE_VERSION,
+    id: newId(),
     name,
     statuses: DEFAULT_STATUSES.map((s) => ({ ...s })),
     pointScale: [...DEFAULT_POINT_SCALE],

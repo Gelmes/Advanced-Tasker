@@ -31,6 +31,12 @@ export interface TaskNode {
   statusHistory: StatusEvent[];
   /** Optional target date (YYYY-MM-DD) — drives the burndown ideal line. */
   dueDate?: string | null;
+  /**
+   * Tombstone timestamp for merge sync (SYNC.md). Absent/null = live. A hard
+   * delete is indistinguishable from "not yet synced", so deletes are carried as
+   * tombstones at the sync boundary. The live interactive delete path is untouched.
+   */
+  deletedAt?: string | null;
   collapsed: boolean;
   createdAt: string;
   updatedAt: string;
@@ -49,6 +55,12 @@ export interface StatusDef {
 
 export interface ProjectFile {
   version: number;
+  /**
+   * Stable project UUID (SYNC.md). Project identity for sync — the filename is
+   * not stable across devices. Generated in parseProject/createEmptyProject when
+   * missing so old files migrate transparently.
+   */
+  id: string;
   name: string;
   /** Fully user-configurable status set. Order is display order. */
   statuses: StatusDef[];

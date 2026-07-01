@@ -9,6 +9,7 @@ import {
   FILE_VERSION,
 } from '../model/defaults';
 import type { ProjectFile, StatusDef, StatusKind, TaskNode } from '../model/types';
+import { newId } from '../model/ids';
 
 /** Infer a status kind for legacy files that predate the `kind` field. */
 function inferKind(raw: any): StatusKind {
@@ -78,6 +79,8 @@ export function parseProject(text: string): ProjectFile {
   }
   return {
     version: typeof raw.version === 'number' ? raw.version : FILE_VERSION,
+    // Stable project id for sync (SYNC.md); generate for legacy files that lack it.
+    id: typeof raw.id === 'string' && raw.id ? raw.id : newId(),
     name: typeof raw.name === 'string' ? raw.name : 'Untitled',
     statuses: migrateStatuses(raw.statuses),
     pointScale: Array.isArray(raw.pointScale) ? raw.pointScale : [...DEFAULT_POINT_SCALE],

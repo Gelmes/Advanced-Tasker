@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useNow } from '../hooks/useNow';
 import {
@@ -8,9 +9,9 @@ import {
   type KindOf,
 } from '../model/lifecycle';
 import { completion, computeRollup } from '../model/rollups';
-import { elapsedSeconds, formatDuration } from '../model/time';
+import { elapsedSeconds, formatDuration, parseDuration } from '../model/time';
 import { findNode } from '../model/tree';
-import type { StatusDef } from '../model/types';
+import type { StatusDef, TaskNode } from '../model/types';
 import { useStore } from '../store/useStore';
 
 // Right-side panel showing the selected node's captured lifecycle data — the
@@ -55,6 +56,44 @@ function Info({ hint }: { hint: string }) {
     >
       ⓘ
     </Text>
+  );
+}
+
+/**
+ * Editable "Effort (timer)" field. Shows the live elapsed time, but becomes an
+ * editable draft on focus so you can correct a runaway timer (e.g. one left
+ * running after you walked away). Commits on Enter/blur; bad input reverts.
+ */
+function EffortField({ node, nowMs }: { node: TaskNode; nowMs: number }) {
+  const setEffortFor = useStore((s) => s.setEffortFor);
+  const [draft, setDraft] = useState<string | null>(null);
+  const display = formatDuration(elapsedSeconds(node, nowMs));
+
+  const commit = () => {
+    if (draft != null) {
+      const secs = parseDuration(draft);
+      if (secs != null) setEffortFor(node.id, secs);
+    }
+    setDraft(null);
+  };
+
+  return (
+    <View style={styles.field}>
+      <View style={styles.fieldLabelWrap}>
+        <Text style={styles.fieldLabel}>Effort (timer)</Text>
+        <Info hint="Total time the start/stop timer ran on this task — not wall-clock. Click to edit and correct a runaway timer (e.g. 1h30m, 90m, 45s)." />
+      </View>
+      <TextInput
+        style={[styles.fieldValue, styles.effortInput]}
+        value={draft ?? display}
+        onChangeText={setDraft}
+        onFocus={() => setDraft(display)}
+        onBlur={commit}
+        onSubmitEditing={commit}
+        selectTextOnFocus
+        autoCapitalize="none"
+      />
+    </View>
   );
 }
 
@@ -134,11 +173,7 @@ export function TaskDetails() {
           </View>
 
           <View style={styles.section}>
-            <Field
-              label="Effort (timer)"
-              value={formatDuration(elapsedSeconds(node, nowMs))}
-              hint="Total time the start/stop timer ran on this task — not wall-clock."
-            />
+            <EffortField node={node} nowMs={nowMs} />
             <Field label="Created" value={fmtDate(node.createdAt)} />
             <Field
               label="Started"
@@ -242,6 +277,12 @@ const styles = StyleSheet.create({
   fieldLabel: { fontSize: 13, color: '#6b7280' },
   info: { fontSize: 11, color: '#9ca3af', cursor: 'help' } as any,
   fieldValue: { fontSize: 13, color: '#111827', fontVariant: ['tabular-nums'] },
+  effortInput: {
+    textAlign: 'right',
+    minWidth: 70,
+    padding: 0,
+    outlineWidth: 0,
+  } as any,
   dueInput: {
     fontSize: 13,
     color: '#111827',

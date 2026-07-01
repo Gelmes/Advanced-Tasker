@@ -37,7 +37,13 @@ export function findNode(root: TaskNode[], id: string): TaskNode | null {
   return last.siblings[last.index];
 }
 
-function touch(node: TaskNode): void {
+/**
+ * Bump a node's `updatedAt` so per-node last-write-wins sync (SYNC.md) is
+ * reliable. Every mutation of a node's own fields should go through this — the
+ * tree ops below already do; store paths that mutate a node directly (due date,
+ * timer, effort) call it explicitly.
+ */
+export function touch(node: TaskNode): void {
   node.updatedAt = nowIso();
 }
 

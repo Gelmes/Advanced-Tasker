@@ -22,6 +22,32 @@ export function bankTime(node: TaskNode, nowMs: number): void {
   node.time.startedAt = null;
 }
 
+/**
+ * Parse a human duration into seconds — the inverse of `formatDuration`.
+ * Accepts h/m/s tokens in any combination (`1h30m`, `2h`, `45s`, `1h03m`) and a
+ * bare number, which is read as minutes (`90` → 90m). Returns null if nothing
+ * parses, so callers can reject bad input and leave the value unchanged.
+ */
+export function parseDuration(input: string): number | null {
+  const str = input.trim().toLowerCase();
+  if (!str) return null;
+  // A bare number is the common case when correcting a timer: read it as minutes.
+  if (/^\d+(\.\d+)?$/.test(str)) return Math.round(parseFloat(str) * 60);
+  // `formatDuration` renders "1h30" (hours + zero-padded minutes, no trailing m);
+  // normalise that bare-minutes tail to an explicit "m" so the token scan reads it.
+  const norm = str.replace(/(\d)h(\d+)(?![\dhms])/g, '$1h$2m');
+  const re = /(\d+(?:\.\d+)?)\s*([hms])/g;
+  let total = 0;
+  let matched = false;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(norm)) !== null) {
+    matched = true;
+    const val = parseFloat(m[1]);
+    total += m[2] === 'h' ? val * 3600 : m[2] === 'm' ? val * 60 : val;
+  }
+  return matched ? Math.round(total) : null;
+}
+
 /** Compact human duration: 45s, 12m, 1h03m, 2h. */
 export function formatDuration(totalSeconds: number): string {
   const s = Math.max(0, Math.round(totalSeconds));

@@ -22,6 +22,7 @@ import {
   setContent,
   setStatus,
   setStoryPoints,
+  touch,
   walk,
   type DropWhere,
 } from '../model/tree';
@@ -152,6 +153,8 @@ export interface AppState {
   // Timer (single active node, SPEC.md §2)
   toggleTimerFor: (id: string) => void;
   toggleTimerSelected: () => void;
+  /** Overwrite a node's banked effort (seconds) — e.g. trim a runaway timer. */
+  setEffortFor: (id: string, seconds: number) => void;
 
   // Status configuration (SPEC.md §2 — fully user-configurable)
   addStatus: () => void;
@@ -551,7 +554,10 @@ export const useStore = create<AppState>((set, get) => {
     setDueDateFor: (id, dueDate) =>
       apply((root) => {
         const node = findNode(root, id);
-        if (node) node.dueDate = dueDate || null;
+        if (node) {
+          node.dueDate = dueDate || null;
+          touch(node);
+        }
       }, `due:${id}`),
 
     moveNode: (dragId, targetId, where) => {
@@ -649,11 +655,15 @@ export const useStore = create<AppState>((set, get) => {
         } else {
           if (active) {
             const prev = findNode(project.root.children, active);
-            if (prev) bankTime(prev, nowMs); // only one runs at a time
+            if (prev) {
+              bankTime(prev, nowMs); // only one runs at a time
+              touch(prev);
+            }
           }
           target.time.startedAt = new Date(nowMs).toISOString();
           project.activeTimerNodeId = id;
         }
+        touch(target); // bump for per-node LWW sync of the `time` field
       });
     },
 
@@ -661,6 +671,17 @@ export const useStore = create<AppState>((set, get) => {
       const { selectedId } = get();
       if (selectedId) get().toggleTimerFor(selectedId);
     },
+
+    setEffortFor: (id, seconds) =>
+      applyProject((project) => {
+        const node = findNode(project.root.children, id);
+        if (!node) return;
+        node.time.accumulatedSeconds = Math.max(0, Math.round(seconds));
+        // If the timer is live, restart its run from now so the edited total is
+        // exact at this instant and keeps counting forward from the new value.
+        if (node.time.startedAt) node.time.startedAt = new Date(Date.now()).toISOString();
+        touch(node);
+      }, `effort:${id}`),
 
     addStatus: () =>
       applyProject((project) => {

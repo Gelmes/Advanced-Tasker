@@ -29,6 +29,14 @@ export interface TaskNode {
    * statuses leaves only the value you land on.
    */
   statusHistory: StatusEvent[];
+  /**
+   * ISO time of the last status change — the per-field clock `merge()` uses to
+   * resolve `status` independently of `updatedAt` (SYNC.md). Any edit bumps
+   * `updatedAt`, so without this a content edit on one device could silently
+   * override a concurrent status change on another. Optional: legacy nodes fall
+   * back to `updatedAt` during merge.
+   */
+  statusUpdatedAt?: string | null;
   /** Optional target date (YYYY-MM-DD) — drives the burndown ideal line. */
   dueDate?: string | null;
   /**
@@ -37,6 +45,14 @@ export interface TaskNode {
    * tombstones at the sync boundary. The live interactive delete path is untouched.
    */
   deletedAt?: string | null;
+  /**
+   * Fractional-index key giving this node's position among its siblings (SYNC.md).
+   * Stored (not derived from array order) so it stays stable across devices —
+   * that's what lets concurrent inserts/reorders merge without collision. Assigned
+   * by the tree ops on move/insert and backfilled on load; array order remains the
+   * live source of truth and is kept consistent with it.
+   */
+  orderKey?: string;
   collapsed: boolean;
   createdAt: string;
   updatedAt: string;

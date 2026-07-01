@@ -10,6 +10,7 @@ import {
 } from '../model/defaults';
 import type { ProjectFile, StatusDef, StatusKind, TaskNode } from '../model/types';
 import { newId } from '../model/ids';
+import { ensureOrderKeys } from '../model/orderKey';
 
 /** Infer a status kind for legacy files that predate the `kind` field. */
 function inferKind(raw: any): StatusKind {
@@ -77,6 +78,8 @@ export function parseProject(text: string): ProjectFile {
   if (!raw.root || !Array.isArray(raw.root.children)) {
     throw new Error('Missing root.children — not an Advanced Tasker project.');
   }
+  const children = migrateNodes(raw.root.children ?? []);
+  ensureOrderKeys(children); // backfill sync order keys for legacy files (SYNC.md)
   return {
     version: typeof raw.version === 'number' ? raw.version : FILE_VERSION,
     // Stable project id for sync (SYNC.md); generate for legacy files that lack it.
@@ -86,7 +89,7 @@ export function parseProject(text: string): ProjectFile {
     pointScale: Array.isArray(raw.pointScale) ? raw.pointScale : [...DEFAULT_POINT_SCALE],
     activeTimerNodeId:
       typeof raw.activeTimerNodeId === 'string' ? raw.activeTimerNodeId : null,
-    root: { children: migrateNodes(raw.root.children ?? []) },
+    root: { children },
   };
 }
 

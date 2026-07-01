@@ -302,6 +302,9 @@ export const useStore = create<AppState>((set, get) => {
       if (!node) return;
       const before = node.status;
       setStatus(root, id, newStatus);
+      // Stamp the status-specific clock so sync merges `status` independently of
+      // `updatedAt` (which any edit bumps). See SYNC.md "per-field status".
+      if (newStatus !== before) node.statusUpdatedAt = nowIso();
       recordStatusChange(node, before, newStatus);
     });
   };
@@ -598,6 +601,7 @@ export const useStore = create<AppState>((set, get) => {
         const reset = (n: TaskNode) => {
           n.time = { accumulatedSeconds: 0, startedAt: null };
           n.statusHistory = n.status ? [{ at: ts, status: n.status }] : [];
+          n.statusUpdatedAt = n.status ? ts : null;
           n.createdAt = ts;
           n.updatedAt = ts;
           n.children.forEach(reset);

@@ -5,6 +5,7 @@
 
 import { createNode, nowIso } from './factory';
 import { newId } from './ids';
+import { reindexAt } from './orderKey';
 import type { ProjectFile, TaskNode } from './types';
 
 interface Level {
@@ -84,15 +85,18 @@ export function insertSiblingAfter(root: TaskNode[], id: string | null): string 
   const node = createNode('');
   if (!id) {
     root.push(node);
+    reindexAt(root, root.length - 1);
     return node.id;
   }
   const path = locate(root, id);
   if (!path) {
     root.push(node);
+    reindexAt(root, root.length - 1);
     return node.id;
   }
   const lvl = path[path.length - 1];
   lvl.siblings.splice(lvl.index + 1, 0, node);
+  reindexAt(lvl.siblings, lvl.index + 1);
   return node.id;
 }
 
@@ -106,6 +110,7 @@ export function indent(root: TaskNode[], id: string): void {
   const prev = lvl.siblings[lvl.index - 1];
   prev.collapsed = false;
   prev.children.push(node);
+  reindexAt(prev.children, prev.children.length - 1);
   touch(prev);
   touch(node);
 }
@@ -119,6 +124,7 @@ export function outdent(root: TaskNode[], id: string): void {
   const parent = parentLvl.siblings[parentLvl.index];
   const [node] = lvl.siblings.splice(lvl.index, 1);
   parentLvl.siblings.splice(parentLvl.index + 1, 0, node);
+  reindexAt(parentLvl.siblings, parentLvl.index + 1);
   touch(parent);
   touch(node);
 }
@@ -132,6 +138,7 @@ export function moveWithinSiblings(root: TaskNode[], id: string, dir: -1 | 1): v
   if (target < 0 || target >= lvl.siblings.length) return;
   const [node] = lvl.siblings.splice(lvl.index, 1);
   lvl.siblings.splice(target, 0, node);
+  reindexAt(lvl.siblings, target);
   touch(node);
 }
 
@@ -200,10 +207,12 @@ export function moveNodeRelative(
     const target = tl.siblings[tl.index];
     target.collapsed = false;
     target.children.unshift(dragNode);
+    reindexAt(target.children, 0);
     touch(target);
   } else {
     const at = where === 'before' ? tl.index : tl.index + 1;
     tl.siblings.splice(at, 0, dragNode);
+    reindexAt(tl.siblings, at);
   }
   touch(dragNode);
 }
@@ -287,13 +296,16 @@ export function insertSubtreeAfter(
 ): void {
   if (!targetId) {
     root.push(subtree);
+    reindexAt(root, root.length - 1);
     return;
   }
   const path = locate(root, targetId);
   if (!path) {
     root.push(subtree);
+    reindexAt(root, root.length - 1);
     return;
   }
   const lvl = path[path.length - 1];
   lvl.siblings.splice(lvl.index + 1, 0, subtree);
+  reindexAt(lvl.siblings, lvl.index + 1);
 }

@@ -14,6 +14,8 @@
 // Invariant: keyBetween(a, b) returns k with a < k < b under plain lexicographic
 // (<) comparison. `a`/`b` may be null for an open end.
 
+import type { TaskNode } from './types';
+
 // Ordered digit alphabet — ASCII order matters, so this must be ascending.
 const DIGITS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 const BASE = DIGITS.length; // 62
@@ -88,4 +90,38 @@ export function initialKeys(count: number): string[] {
     prev = k;
   }
   return keys;
+}
+
+// --- node order-key maintenance ---------------------------------------------
+// Order keys are STORED on each node (TaskNode.orderKey) and only recomputed when
+// the node moves, so two devices that both hold a node agree on its key. That's
+// what makes concurrent inserts/reorders merge without collision (SYNC.md). These
+// helpers keep the stored keys consistent with the live array order.
+
+/**
+ * Recompute `siblings[index].orderKey` to sit strictly between its current array
+ * neighbours' keys. Call this right after an op splices a node into place — in the
+ * same op that `touch()`es it, so the rekey and the `updatedAt` bump travel
+ * together and survive the merge. A missing neighbour key is treated as an open end.
+ */
+export function reindexAt(siblings: TaskNode[], index: number): void {
+  const left = index > 0 ? siblings[index - 1].orderKey ?? null : null;
+  let right = index < siblings.length - 1 ? siblings[index + 1].orderKey ?? null : null;
+  // Defensive: if stored keys are somehow out of order, treat the right as open
+  // rather than throwing — the result still sorts after `left`.
+  if (left !== null && right !== null && left >= right) right = null;
+  siblings[index].orderKey = keyBetween(left, right);
+}
+
+/**
+ * Backfill order keys for any sibling group that is missing them (legacy files,
+ * sample data). Idempotent: a fully-keyed tree is left untouched. Keys are assigned
+ * by current array position, so they sort in the existing order.
+ */
+export function ensureOrderKeys(children: TaskNode[]): void {
+  if (children.length && children.some((c) => c.orderKey == null)) {
+    const keys = initialKeys(children.length);
+    children.forEach((c, i) => (c.orderKey = keys[i]));
+  }
+  for (const c of children) ensureOrderKeys(c.children);
 }

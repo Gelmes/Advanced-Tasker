@@ -4,6 +4,7 @@ import {
   DEFAULT_STATUSES,
   FILE_VERSION,
 } from './defaults';
+import { ensureOrderKeys } from './orderKey';
 import type { ProjectFile, TaskNode } from './types';
 
 export function nowIso(): string {
@@ -68,5 +69,6 @@ export function createSampleProject(): ProjectFile {
   });
 
   project.root.children.push(top);
+  ensureOrderKeys(project.root.children);
   return project;
 }

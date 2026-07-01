@@ -1,0 +1,8 @@
+# Keep the build context small — the Dockerfile only needs src/ and server/.
+**/node_modules
+**/dist
+.expo
+release
+build
+graphify-out
+.git

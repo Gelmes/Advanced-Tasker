@@ -542,6 +542,7 @@ export const useStore = create<AppState>((set, get) => {
     setProjectName: (name) => {
       applyProject((project) => {
         project.name = name;
+        project.updatedAt = nowIso(); // project-metadata clock for merge (SYNC.md)
       }, 'name');
       // Keep the sidebar label for the active project in sync.
       const { fileName } = get();
@@ -667,6 +668,7 @@ export const useStore = create<AppState>((set, get) => {
           target.time.startedAt = new Date(nowMs).toISOString();
           project.activeTimerNodeId = id;
         }
+        project.updatedAt = new Date(nowMs).toISOString(); // activeTimer is project metadata
         touch(target); // bump for per-node LWW sync of the `time` field
       });
     },
@@ -694,13 +696,17 @@ export const useStore = create<AppState>((set, get) => {
           label: 'New status',
           color: '#a855f7',
           kind: DEFAULT_STATUS_KIND,
+          updatedAt: nowIso(), // per-status clock for project merge (SYNC.md)
         });
       }),
 
     updateStatus: (id, patch) =>
       applyProject((project) => {
         const s = project.statuses.find((x) => x.id === id);
-        if (s) Object.assign(s, patch);
+        if (s) {
+          Object.assign(s, patch);
+          s.updatedAt = nowIso(); // bump the per-status merge clock
+        }
       }),
 
     removeStatus: (id) =>

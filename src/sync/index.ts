@@ -5,4 +5,5 @@
 
 export { flatten, rebuild, type SyncNode } from './flatten';
 export { merge, unionHistory } from './merge';
+export { mergeProjects, mergeStatuses } from './project';
 export { keyBetween, initialKeys } from '../model/orderKey';

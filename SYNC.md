@@ -32,6 +32,9 @@ Additive fields, backward compatible:
 - **`TaskNode.orderKey?: string`** — stored fractional-index key for this node's
   position among its siblings (see *Order keys*). Backfilled by `ensureOrderKeys`
   in `parseProject`, so legacy files gain keys on first load.
+- **`StatusDef.updatedAt?: string`** — per-status clock for project merge.
+- **`ProjectFile.updatedAt?: string`** — clock for project *metadata* (name,
+  point scale, active timer).
 
 **`updatedAt` discipline.** Per-node last-write-wins needs a reliable `updatedAt`.
 The `touch()` helper in `model/tree.ts` bumps it; every tree mutation op already
@@ -111,6 +114,25 @@ inserts stay sorted and unique).
 The whole pipeline is order-independent and symmetric: `merge(a, b)` and
 `merge(b, a)` converge to the same set.
 
+## Project-level merge (`src/sync/project.ts`)
+
+`merge()` above reconciles the node *tree*. `mergeProjects(local, remote)` wraps it
+and also reconciles the metadata on `ProjectFile`, then repairs references:
+
+- **Nodes** — `rebuild(merge(flatten(local), flatten(remote)))`.
+- **Statuses** — `mergeStatuses`: **union by id**, last-write-wins per status by
+  `StatusDef.updatedAt`. An *added* status is never lost (the real data-loss risk).
+  Order = local's, with remote-only statuses appended.
+- **name / pointScale / activeTimerNodeId** — whole-metadata LWW by
+  `ProjectFile.updatedAt`, with a deterministic tiebreak so both peers agree.
+- **Referential integrity (#4)** — after merging, any node whose `status` didn't
+  survive is demoted to a note (`status = null`), and `activeTimerNodeId` is cleared
+  when it points at a node that isn't live. Both peers compute identical merged sets,
+  so this reconciliation is deterministic and convergent.
+
+The store stamps the clocks: `setProjectName` / `toggleTimer` bump
+`ProjectFile.updatedAt`; `addStatus` / `updateStatus` bump the status's `updatedAt`.
+
 ## Known limitations
 
 - **`time` / timer** — merged by per-node LWW like any scalar. This is fine for
@@ -131,6 +153,11 @@ The whole pipeline is order-independent and symmetric: `merge(a, b)` and
   demoted to a note keeps its `statusHistory`, so `completedAt()` still reports it
   done — the analytics treatment of demoted-but-historied nodes is a separate design
   question, unchanged by this merge fix.
+- **Status / point-scale deletion isn't propagated** — `mergeStatuses` unions by id
+  with no tombstones, so a status removed on one device can reappear from a device
+  that still has it (additive-safe, but incomplete). `name` / `pointScale` merge as
+  whole values (LWW), so concurrent edits to different scale entries keep one side.
+  Proper deletion needs status tombstones — same pattern as nodes — deferred.
 - **Order-key rebalancing** — keys only grow; pathological repeated inserts at the
   same spot lengthen keys but never break ordering. No compaction pass yet.
 

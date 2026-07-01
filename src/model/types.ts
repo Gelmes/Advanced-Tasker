@@ -67,6 +67,11 @@ export interface StatusDef {
   label: string;
   color: string;
   kind: StatusKind;
+  /**
+   * ISO time of the last edit to this status, for per-status last-write-wins in
+   * project merge (SYNC.md). Optional: legacy statuses merge as "oldest".
+   */
+  updatedAt?: string;
 }
 
 export interface ProjectFile {
@@ -84,6 +89,12 @@ export interface ProjectFile {
   pointScale: number[];
   /** Id of the single node whose timer is running, or null. */
   activeTimerNodeId: string | null;
+  /**
+   * ISO time of the last change to project *metadata* (name, pointScale, active
+   * timer) — the clock for merging those fields (SYNC.md). Node edits and status
+   * edits carry their own clocks; this covers the rest.
+   */
+  updatedAt?: string;
   root: { children: TaskNode[] };
 }
 

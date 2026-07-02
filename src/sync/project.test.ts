@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ProjectFile, StatusDef, TaskNode } from '../model/types';
 import { createEmptyProject } from '../model/factory';
 import { ensureOrderKeys } from '../model/orderKey';
-import { mergeProjects, mergeStatuses } from './project';
+import { fingerprint, mergeProjects, mergeStatuses } from './project';
 
 function node(id: string, over: Partial<TaskNode> = {}): TaskNode {
   return {
@@ -86,6 +86,17 @@ describe('mergeProjects', () => {
     const remote = version(base, {}, []);
     const merged = mergeProjects(local, remote);
     expect(merged.root.children.find((c) => c.id === 'n')!.status).toBeNull();
+  });
+
+  it('fingerprint is stable across a clone but changes when a node updates', () => {
+    const base = createEmptyProject('F');
+    const p = version(base, {}, [node('a'), node('b')]);
+    expect(fingerprint(p)).toBe(fingerprint(JSON.parse(JSON.stringify(p))));
+    const edited = version(base, {}, [
+      node('a', { updatedAt: '2027-01-01T00:00:00.000Z' }),
+      node('b'),
+    ]);
+    expect(fingerprint(edited)).not.toBe(fingerprint(p));
   });
 
   it('is order-independent for statuses and metadata', () => {

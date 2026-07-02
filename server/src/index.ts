@@ -5,7 +5,7 @@
 // `owner` column is already there for it.
 
 import express, { type NextFunction, type Request, type Response } from 'express';
-import { getProject, initSchema, syncProject } from './db';
+import { getProject, initSchema, listProjects, syncProject } from './db';
 import type { ProjectFile } from '../../src/model/types';
 
 const app = express();
@@ -39,6 +39,14 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     return;
   }
   next();
+});
+
+app.get('/projects', async (_req: Request, res: Response) => {
+  try {
+    res.json(await listProjects());
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
 });
 
 app.get('/sync/:id', async (req: Request, res: Response) => {

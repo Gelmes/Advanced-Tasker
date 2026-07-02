@@ -4,7 +4,7 @@
 // secure context and would break it. The renderer is plain Chromium, so all of the
 // app's web code (FSA, IndexedDB, SVG charts, etc.) runs unchanged.
 
-const { app, BrowserWindow, protocol, shell, session } = require('electron');
+const { app, BrowserWindow, protocol, shell, session, ipcMain, safeStorage } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs/promises');
 const fsSync = require('node:fs');
@@ -75,7 +75,11 @@ function createWindow() {
     autoHideMenuBar: true,
     backgroundColor: '#ffffff',
     ...(ICON ? { icon: ICON } : {}),
-    webPreferences: { contextIsolation: true, nodeIntegration: false },
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      preload: path.join(__dirname, 'preload.js'),
+    },
   });
 
   // Markdown links etc. open in the system browser, not a new app window.
@@ -86,6 +90,35 @@ function createWindow() {
 
   win.loadURL(`${SCHEME}://local/index.html`);
 }
+
+// Encrypted sync-token storage. The renderer sends the token over the `atSecure`
+// preload bridge; here it's encrypted with the OS keychain (DPAPI on Windows) and
+// written to userData — never stored in plaintext. Falls back to no-op if the OS
+// can't encrypt (the renderer then keeps it in localStorage instead).
+function tokenFile() {
+  return path.join(app.getPath('userData'), 'sync-token.bin');
+}
+ipcMain.handle('secure:getToken', async () => {
+  try {
+    if (!safeStorage.isEncryptionAvailable()) return '';
+    return safeStorage.decryptString(await fs.readFile(tokenFile()));
+  } catch {
+    return '';
+  }
+});
+ipcMain.handle('secure:setToken', async (_event, token) => {
+  const file = tokenFile();
+  if (!token) {
+    try {
+      await fs.unlink(file);
+    } catch {
+      // nothing to clear
+    }
+    return;
+  }
+  if (!safeStorage.isEncryptionAvailable()) return;
+  await fs.writeFile(file, safeStorage.encryptString(String(token)));
+});
 
 app.whenReady().then(() => {
   protocol.handle(SCHEME, serve);

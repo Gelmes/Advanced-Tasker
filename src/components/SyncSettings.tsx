@@ -1,10 +1,12 @@
-import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useStore } from '../store/useStore';
+import { tokenIsEncrypted } from '../persistence/secretStore';
 
-// Cross-device sync settings (SYNC.md). Holds the server URL + shared token
-// (persisted to localStorage) and a "Sync now" action that pushes the current
-// project to the server, which merges it with its copy and returns the result.
+// Cross-device sync settings (SYNC.md). Server URL + shared token (token encrypted
+// via the OS keychain in Electron, else localStorage), a manual "Sync now", and a
+// pull-by-id picker to bootstrap a project onto this device. Background auto-sync
+// runs separately (useAutoSync); this panel is the config + manual controls.
 
 interface Props {
   visible: boolean;
@@ -19,14 +21,42 @@ export function SyncSettings({ visible, onClose }: Props) {
   const projectId = useStore((s) => s.project.id);
   const setSyncConfig = useStore((s) => s.setSyncConfig);
   const syncNow = useStore((s) => s.syncNow);
+  const listServerProjects = useStore((s) => s.listServerProjects);
+  const pullProject = useStore((s) => s.pullProject);
 
   const [url, setUrl] = useState(syncUrl);
   const [token, setToken] = useState(syncToken);
+  const [list, setList] = useState<Array<{ id: string; name: string }> | null>(null);
+  const [listErr, setListErr] = useState<string | null>(null);
+  const [listing, setListing] = useState(false);
+
+  // Keep the fields in step with the store (e.g. the token arriving async on startup).
+  useEffect(() => setUrl(syncUrl), [syncUrl]);
+  useEffect(() => setToken(syncToken), [syncToken]);
 
   const save = () => setSyncConfig(url.trim(), token.trim());
   const saveAndSync = () => {
     save();
     void syncNow();
+  };
+
+  const browse = async () => {
+    save();
+    setListing(true);
+    setListErr(null);
+    try {
+      setList(await listServerProjects());
+    } catch (e: any) {
+      setListErr(e?.message ?? 'Failed to list projects.');
+      setList(null);
+    } finally {
+      setListing(false);
+    }
+  };
+
+  const pull = (id: string) => {
+    void pullProject(id);
+    onClose();
   };
 
   return (
@@ -41,6 +71,7 @@ export function SyncSettings({ visible, onClose }: Props) {
           </View>
           <Text style={styles.subtitle}>
             Push this project to your server and merge it with your other devices.
+            Auto-sync runs in the background; use “Sync now” to force it.
           </Text>
 
           <Text style={styles.fieldLabel}>Server URL</Text>
@@ -65,6 +96,11 @@ export function SyncSettings({ visible, onClose }: Props) {
             autoCapitalize="none"
             autoCorrect={false}
           />
+          <Text style={styles.hint}>
+            {tokenIsEncrypted
+              ? '🔒 Token encrypted at rest via the OS keychain.'
+              : 'Token stored in this browser (localStorage).'}
+          </Text>
 
           <Text style={styles.meta}>Project id: {projectId}</Text>
 
@@ -82,6 +118,30 @@ export function SyncSettings({ visible, onClose }: Props) {
           </View>
 
           {syncStatus ? <Text style={styles.status}>{syncStatus}</Text> : null}
+
+          <View style={styles.divider} />
+
+          <Text style={styles.fieldLabel}>Bring a project onto this device</Text>
+          <Pressable style={[styles.btn, styles.wide]} onPress={() => void browse()}>
+            <Text style={styles.btnText}>{listing ? 'Loading…' : 'Browse server projects'}</Text>
+          </Pressable>
+          {listErr ? <Text style={styles.err}>{listErr}</Text> : null}
+          {list ? (
+            list.length ? (
+              <ScrollView style={styles.list}>
+                {list.map((p) => (
+                  <Pressable key={p.id} style={styles.listRow} onPress={() => pull(p.id)}>
+                    <Text style={styles.listName} numberOfLines={1}>
+                      {p.name}
+                    </Text>
+                    <Text style={styles.listPull}>Pull →</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            ) : (
+              <Text style={styles.hint}>No projects on the server yet.</Text>
+            )
+          ) : null}
         </Pressable>
       </Pressable>
     </Modal>
@@ -99,6 +159,7 @@ const styles = StyleSheet.create({
   panel: {
     width: 440,
     maxWidth: '100%',
+    maxHeight: '85%',
     backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 16,
@@ -117,6 +178,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     outlineWidth: 0,
   } as any,
+  hint: { fontSize: 11, color: '#9ca3af', marginTop: 6 },
   meta: { fontSize: 11, color: '#9ca3af', marginTop: 10 },
   actions: { flexDirection: 'row', gap: 8, marginTop: 14 },
   btn: {
@@ -127,9 +189,27 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#d1d5db',
   },
+  wide: { alignSelf: 'flex-start' },
   btnText: { fontSize: 13, color: '#374151' },
   primary: { backgroundColor: '#4f46e5', borderColor: '#4f46e5' },
   primaryText: { fontSize: 13, color: '#ffffff', fontWeight: '600' },
   disabled: { opacity: 0.5 },
   status: { fontSize: 12, color: '#374151', marginTop: 12 },
+  divider: { height: 1, backgroundColor: '#e5e7eb', marginTop: 16, marginBottom: 4 },
+  err: { fontSize: 12, color: '#b91c1c', marginTop: 6 },
+  list: { marginTop: 8, maxHeight: 160 },
+  listRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 7,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#eef2ff',
+    backgroundColor: '#f9fafb',
+    marginBottom: 6,
+  },
+  listName: { fontSize: 13, color: '#374151', flexShrink: 1 },
+  listPull: { fontSize: 12, color: '#4f46e5', marginLeft: 8 },
 });

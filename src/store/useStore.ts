@@ -57,6 +57,8 @@ import {
   removeFolder,
   type FolderEntry,
 } from '../persistence/handleStore';
+import { getStoredToken, storeToken } from '../persistence/secretStore';
+import { fingerprint } from '../sync/project';
 
 // Global app state: the project tree, transient UI state (selection + mode), and
 // the bound file. Structural changes go through pure ops in model/tree.ts via the
@@ -113,6 +115,8 @@ export interface AppState {
   syncing: boolean;
   /** Last sync result/error message for the Sync panel, or null. */
   syncStatus: string | null;
+  /** Monotonic counter bumped on every user edit — drives debounced auto-sync. */
+  editRev: number;
 
   // Selection / mode
   select: (id: string | null) => void;
@@ -182,6 +186,12 @@ export interface AppState {
   setSyncConfig: (url: string, token: string) => void;
   /** Push the current project to the sync server and adopt the merged result. */
   syncNow: () => Promise<void>;
+  /** Load the saved sync token from secure storage into state (call on startup). */
+  loadSecrets: () => Promise<void>;
+  /** List the projects held on the sync server as `{ id, name }`. */
+  listServerProjects: () => Promise<Array<{ id: string; name: string }>>;
+  /** Pull a server project by id into the current workspace folder and open it. */
+  pullProject: (id: string) => Promise<void>;
 
   setSidebarTab: (tab: 'projects' | 'search') => void;
   setTagQuery: (q: string) => void;
@@ -215,7 +225,6 @@ function readVimNav(): boolean {
 }
 
 const SYNC_URL_KEY = 'advanced-tasker:syncUrl';
-const SYNC_TOKEN_KEY = 'advanced-tasker:syncToken';
 function readLS(key: string): string {
   try {
     return (typeof localStorage !== 'undefined' && localStorage.getItem(key)) || '';
@@ -241,10 +250,14 @@ export const useStore = create<AppState>((set, get) => {
     histTag = tag;
     histAt = now;
     if (coalesce) {
-      set({ future: [] });
+      set({ future: [], editRev: get().editRev + 1 });
       return;
     }
-    set({ past: [...get().past, get().project].slice(-HISTORY_LIMIT), future: [] });
+    set({
+      past: [...get().past, get().project].slice(-HISTORY_LIMIT),
+      future: [],
+      editRev: get().editRev + 1,
+    });
   };
 
   /** Mutate the tree without recording history (e.g. collapse/expand). */
@@ -401,9 +414,10 @@ export const useStore = create<AppState>((set, get) => {
     helpOpen: false,
     detailsOpen: false,
     syncUrl: readLS(SYNC_URL_KEY),
-    syncToken: readLS(SYNC_TOKEN_KEY),
+    syncToken: '', // loaded from secure storage via loadSecrets() on startup
     syncing: false,
     syncStatus: null,
+    editRev: 0,
 
     select: (id) => set({ selectedId: id }),
     setMode: (mode) => set({ mode }),
@@ -419,18 +433,22 @@ export const useStore = create<AppState>((set, get) => {
 
     setSyncConfig: (url, token) => {
       try {
-        if (typeof localStorage !== 'undefined') {
-          localStorage.setItem(SYNC_URL_KEY, url);
-          localStorage.setItem(SYNC_TOKEN_KEY, token);
-        }
+        if (typeof localStorage !== 'undefined') localStorage.setItem(SYNC_URL_KEY, url);
       } catch {
         // ignore storage failures
       }
+      void storeToken(token); // encrypted via OS keychain (Electron) or localStorage
       set({ syncUrl: url, syncToken: token });
     },
 
+    loadSecrets: async () => {
+      const token = await getStoredToken();
+      if (token) set({ syncToken: token });
+    },
+
     syncNow: async () => {
-      const { syncUrl, syncToken, project } = get();
+      const { syncUrl, syncToken, project: pushed, syncing } = get();
+      if (syncing) return; // don't overlap a manual click with an auto-sync
       const base = syncUrl.trim().replace(/\/+$/, '');
       if (!base || !syncToken) {
         set({ syncStatus: 'Set a server URL and token first.' });
@@ -440,26 +458,32 @@ export const useStore = create<AppState>((set, get) => {
       try {
         // Push the local project; the server merges it with its copy and returns the
         // result. mergeProjects is symmetric, so this is a full two-way sync.
-        const res = await fetch(`${base}/sync/${encodeURIComponent(project.id)}`, {
+        const res = await fetch(`${base}/sync/${encodeURIComponent(pushed.id)}`, {
           method: 'POST',
-          headers: {
-            'content-type': 'application/json',
-            authorization: `Bearer ${syncToken}`,
-          },
-          body: JSON.stringify(project),
+          headers: { 'content-type': 'application/json', authorization: `Bearer ${syncToken}` },
+          body: JSON.stringify(pushed),
         });
         if (!res.ok) {
           const msg =
-            res.status === 401
-              ? 'Unauthorized — check the token.'
-              : `Sync failed (HTTP ${res.status}).`;
+            res.status === 401 ? 'Unauthorized — check the token.' : `Sync failed (HTTP ${res.status}).`;
           set({ syncing: false, syncStatus: msg });
           return;
         }
         const merged = (await res.json()) as ProjectFile;
-        // Adopt the merged project: a remote merge must NOT go on the undo stack, so we
-        // reset history rather than record a step. Keep the same bound file; mark dirty
-        // and write the merged result back to disk.
+        const current = get().project;
+        // If the user edited locally while the request was in flight, don't clobber
+        // those edits — they'll push on the next auto-sync cycle.
+        if (current.id !== pushed.id || fingerprint(current) !== fingerprint(pushed)) {
+          set({ syncing: false, syncStatus: 'Synced — local edits will sync next.' });
+          return;
+        }
+        // Nothing new came back → leave local state (and undo history) untouched.
+        if (fingerprint(merged) === fingerprint(current)) {
+          set({ syncing: false, syncStatus: 'Up to date.' });
+          return;
+        }
+        // Remote changes arrived: adopt them. A remote merge isn't an undoable local
+        // step, so reset history rather than record one; keep the bound file and save.
         resetHistory();
         const sel = get().selectedId;
         const keepSel = sel && findNode(merged.root.children, sel) ? sel : null;
@@ -469,11 +493,55 @@ export const useStore = create<AppState>((set, get) => {
           mode: 'selected',
           dirty: true,
           syncing: false,
-          syncStatus: 'Synced.',
+          syncStatus: 'Synced — updated from another device.',
         });
         if (get().fileHandle) await get().saveProject();
       } catch (e: any) {
         set({ syncing: false, syncStatus: `Sync error: ${e?.message ?? 'network'}` });
+      }
+    },
+
+    listServerProjects: async () => {
+      const { syncUrl, syncToken } = get();
+      const base = syncUrl.trim().replace(/\/+$/, '');
+      if (!base || !syncToken) return [];
+      const res = await fetch(`${base}/projects`, {
+        headers: { authorization: `Bearer ${syncToken}` },
+      });
+      if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : `HTTP ${res.status}`);
+      return (await res.json()) as Array<{ id: string; name: string }>;
+    },
+
+    pullProject: async (id) => {
+      const { syncUrl, syncToken, workspaceDir, projects } = get();
+      const base = syncUrl.trim().replace(/\/+$/, '');
+      if (!base || !syncToken) return;
+      set({ syncing: true, syncStatus: null });
+      try {
+        const res = await fetch(`${base}/sync/${encodeURIComponent(id)}`, {
+          headers: { authorization: `Bearer ${syncToken}` },
+        });
+        if (!res.ok) {
+          set({ syncing: false, syncStatus: `Pull failed (HTTP ${res.status}).` });
+          return;
+        }
+        const project = (await res.json()) as ProjectFile;
+        if (workspaceDir) {
+          const slug = (project.name || 'project').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+          const fileName = uniqueFileName(projects, slug || 'project');
+          const ref = await createProjectFile(workspaceDir, fileName, project);
+          set({
+            projects: [...get().projects, ref].sort((a, b) => a.name.localeCompare(b.name)),
+            syncing: false,
+            syncStatus: 'Pulled.',
+          });
+          get().loadProject(project, ref.handle, ref.fileName);
+        } else {
+          get().loadProject(project, null, null);
+          set({ syncing: false, syncStatus: 'Pulled (unsaved — use Save As).' });
+        }
+      } catch (e: any) {
+        set({ syncing: false, syncStatus: `Pull error: ${e?.message ?? 'network'}` });
       }
     },
 

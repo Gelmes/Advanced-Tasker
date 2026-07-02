@@ -94,3 +94,21 @@ function newer(a: string | undefined, b: string | undefined): string | undefined
   if (!b) return a;
   return a > b ? a : b;
 }
+
+/**
+ * A content fingerprint used to tell whether a merge actually changed anything.
+ * Order-independent (sorted) and built from the fields that carry a change signal
+ * (every meaningful edit bumps a node's `updatedAt`/`statusUpdatedAt`), so
+ * `fingerprint(local) === fingerprint(merged)` means the sync brought back nothing
+ * new — the client can skip adopting it (no undo reset, no cursor jump).
+ */
+export function fingerprint(p: ProjectFile): string {
+  const nodes = flatten(p)
+    .map(
+      (n) =>
+        `${n.id}|${n.updatedAt}|${n.statusUpdatedAt ?? ''}|${n.deletedAt ?? ''}|${n.orderKey}|${n.parentId ?? ''}`,
+    )
+    .sort();
+  const statuses = p.statuses.map((s) => `${s.id}|${s.updatedAt ?? ''}`).sort();
+  return JSON.stringify([p.updatedAt ?? '', p.name, p.activeTimerNodeId ?? '', p.pointScale, statuses, nodes]);
+}

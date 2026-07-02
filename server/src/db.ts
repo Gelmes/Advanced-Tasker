@@ -33,6 +33,14 @@ export async function getProject(id: string): Promise<ProjectFile | null> {
   return rows.length ? (rows[0].data as ProjectFile) : null;
 }
 
+/** All projects on the server as `{ id, name }`, for the pull-by-id picker. */
+export async function listProjects(): Promise<Array<{ id: string; name: string }>> {
+  const { rows } = await pool.query(
+    "select id, coalesce(data->>'name', id) as name from projects order by name",
+  );
+  return rows.map((r) => ({ id: r.id as string, name: r.name as string }));
+}
+
 /**
  * Merge the client's project into the stored one (or store it fresh), atomically.
  * `select ... for update` locks the row so two devices syncing at once can't lose

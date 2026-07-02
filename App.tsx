@@ -8,15 +8,18 @@ import { TaskDetails } from './src/components/TaskDetails';
 import { WorkspaceBar } from './src/components/WorkspaceBar';
 import { DragProvider } from './src/components/DragContext';
 import { useAutosave } from './src/hooks/useAutosave';
+import { useAutoSync } from './src/hooks/useAutoSync';
 import { useKeyboardNav } from './src/hooks/useKeyboardNav';
 import { useStore } from './src/store/useStore';
 
 export default function App() {
   useKeyboardNav();
   useAutosave();
+  useAutoSync();
 
-  // Reopen the last workspace folder if it's still permitted.
+  // Load the saved sync token and reopen the last workspace folder on startup.
   useEffect(() => {
+    void useStore.getState().loadSecrets();
     void useStore.getState().restoreWorkspace();
   }, []);
 

@@ -4,6 +4,7 @@ import { useStore } from '../store/useStore';
 import { ChartsModal } from './charts/ChartsModal';
 import { ShortcutsHelp } from './ShortcutsHelp';
 import { StatusManager } from './StatusManager';
+import { SyncSettings } from './SyncSettings';
 
 // Top toolbar: workspace + file actions and save status.
 
@@ -53,6 +54,8 @@ export function WorkspaceBar() {
 
   const [statusManagerOpen, setStatusManagerOpen] = useState(false);
   const [chartsOpen, setChartsOpen] = useState(false);
+  const [syncOpen, setSyncOpen] = useState(false);
+  const syncing = useStore((s) => s.syncing);
 
   const status = saving
     ? 'Saving…'
@@ -78,6 +81,7 @@ export function WorkspaceBar() {
         <Button label="Statuses" onPress={() => setStatusManagerOpen(true)} />
         <Button label="📊 Charts" onPress={() => setChartsOpen(true)} />
         <Button label="Details" onPress={toggleDetails} />
+        <Button label={syncing ? '⇅ Syncing…' : '⇅ Sync'} onPress={() => setSyncOpen(true)} />
         <Button label="⌨ Shortcuts" onPress={() => setHelpOpen(true)} />
       </View>
       <Text style={[styles.status, error && styles.statusError]} numberOfLines={1}>
@@ -86,6 +90,7 @@ export function WorkspaceBar() {
 
       <StatusManager visible={statusManagerOpen} onClose={() => setStatusManagerOpen(false)} />
       <ChartsModal visible={chartsOpen} onClose={() => setChartsOpen(false)} />
+      <SyncSettings visible={syncOpen} onClose={() => setSyncOpen(false)} />
       <ShortcutsHelp visible={helpOpen} onClose={() => setHelpOpen(false)} />
     </View>
   );

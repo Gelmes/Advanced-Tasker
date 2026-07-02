@@ -107,6 +107,12 @@ export interface AppState {
   tagQuery: string;
   helpOpen: boolean;
   detailsOpen: boolean;
+  /** Sync server base URL + shared token (persisted to localStorage). Empty = off. */
+  syncUrl: string;
+  syncToken: string;
+  syncing: boolean;
+  /** Last sync result/error message for the Sync panel, or null. */
+  syncStatus: string | null;
 
   // Selection / mode
   select: (id: string | null) => void;
@@ -172,6 +178,10 @@ export interface AppState {
 
   setHelpOpen: (open: boolean) => void;
   toggleDetails: () => void;
+  /** Persist the sync server URL + shared token. */
+  setSyncConfig: (url: string, token: string) => void;
+  /** Push the current project to the sync server and adopt the merged result. */
+  syncNow: () => Promise<void>;
 
   setSidebarTab: (tab: 'projects' | 'search') => void;
   setTagQuery: (q: string) => void;
@@ -201,6 +211,16 @@ function readVimNav(): boolean {
     return typeof localStorage !== 'undefined' && localStorage.getItem(VIM_KEY) === '1';
   } catch {
     return false;
+  }
+}
+
+const SYNC_URL_KEY = 'advanced-tasker:syncUrl';
+const SYNC_TOKEN_KEY = 'advanced-tasker:syncToken';
+function readLS(key: string): string {
+  try {
+    return (typeof localStorage !== 'undefined' && localStorage.getItem(key)) || '';
+  } catch {
+    return '';
   }
 }
 
@@ -380,6 +400,10 @@ export const useStore = create<AppState>((set, get) => {
     tagQuery: '',
     helpOpen: false,
     detailsOpen: false,
+    syncUrl: readLS(SYNC_URL_KEY),
+    syncToken: readLS(SYNC_TOKEN_KEY),
+    syncing: false,
+    syncStatus: null,
 
     select: (id) => set({ selectedId: id }),
     setMode: (mode) => set({ mode }),
@@ -391,6 +415,66 @@ export const useStore = create<AppState>((set, get) => {
         // ignore storage failures
       }
       set({ vimNav: on });
+    },
+
+    setSyncConfig: (url, token) => {
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(SYNC_URL_KEY, url);
+          localStorage.setItem(SYNC_TOKEN_KEY, token);
+        }
+      } catch {
+        // ignore storage failures
+      }
+      set({ syncUrl: url, syncToken: token });
+    },
+
+    syncNow: async () => {
+      const { syncUrl, syncToken, project } = get();
+      const base = syncUrl.trim().replace(/\/+$/, '');
+      if (!base || !syncToken) {
+        set({ syncStatus: 'Set a server URL and token first.' });
+        return;
+      }
+      set({ syncing: true, syncStatus: null });
+      try {
+        // Push the local project; the server merges it with its copy and returns the
+        // result. mergeProjects is symmetric, so this is a full two-way sync.
+        const res = await fetch(`${base}/sync/${encodeURIComponent(project.id)}`, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            authorization: `Bearer ${syncToken}`,
+          },
+          body: JSON.stringify(project),
+        });
+        if (!res.ok) {
+          const msg =
+            res.status === 401
+              ? 'Unauthorized — check the token.'
+              : `Sync failed (HTTP ${res.status}).`;
+          set({ syncing: false, syncStatus: msg });
+          return;
+        }
+        const merged = (await res.json()) as ProjectFile;
+        // Adopt the merged project: a remote merge must NOT go on the undo stack, so we
+        // reset history rather than record a step. Keep the same bound file; mark dirty
+        // and write the merged result back to disk.
+        resetHistory();
+        const sel = get().selectedId;
+        const keepSel = sel && findNode(merged.root.children, sel) ? sel : null;
+        set({
+          project: merged,
+          selectedId: keepSel,
+          mode: 'selected',
+          dirty: true,
+          syncing: false,
+          syncStatus: 'Synced.',
+        });
+        if (get().fileHandle) await get().saveProject();
+      } catch (e: any) {
+        set({ syncing: false, syncStatus: `Sync error: ${e?.message ?? 'network'}` });
+      }
     },
 
     moveSelection: (dir) => {

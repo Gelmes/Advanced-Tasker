@@ -112,3 +112,28 @@ export function fingerprint(p: ProjectFile): string {
   const statuses = p.statuses.map((s) => `${s.id}|${s.updatedAt ?? ''}`).sort();
   return JSON.stringify([p.updatedAt ?? '', p.name, p.activeTimerNodeId ?? '', p.pointScale, statuses, nodes]);
 }
+
+/**
+ * Overlay this device's local view state (collapse) onto a merged project before the
+ * client adopts it. Collapse is device-local (SYNC.md) — never synced — so each node
+ * keeps whatever collapsed value it had locally; nodes new from the merge keep theirs.
+ * Mutates `merged` in place (it's a freshly-parsed object owned by the caller).
+ */
+export function applyLocalView(merged: ProjectFile, local: ProjectFile): void {
+  const localCollapsed = new Map<string, boolean>();
+  const gather = (nodes: TaskNode[]) => {
+    for (const n of nodes) {
+      localCollapsed.set(n.id, n.collapsed);
+      gather(n.children);
+    }
+  };
+  gather(local.root.children);
+  const overlay = (nodes: TaskNode[]) => {
+    for (const n of nodes) {
+      const c = localCollapsed.get(n.id);
+      if (c !== undefined) n.collapsed = c;
+      overlay(n.children);
+    }
+  };
+  overlay(merged.root.children);
+}

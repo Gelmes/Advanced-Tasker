@@ -25,10 +25,11 @@ Additive fields, backward compatible:
   live. A hard-removed node is indistinguishable from "not yet synced", so deletes
   must be representable to merge correctly. The live delete path still hard-removes
   nodes; tombstones are produced/consumed only at the sync boundary.
-- **`TaskNode.statusUpdatedAt?: string | null`** — ISO time of the last status
-  change, the per-field clock for merging `status` (below). Set in the store's
-  status path (`applyStatusChange`). No migration needed: merge falls back to
-  `updatedAt` for legacy nodes, so old files behave exactly as before.
+- **`TaskNode.statusUpdatedAt? / storyPointsUpdatedAt? / dueDateUpdatedAt?`** — the
+  per-field merge clocks (ISO time of the last change to each field). No migration
+  needed: merge falls back to `updatedAt` for legacy nodes, so old files behave
+  exactly as before. Stamped where each field is edited (`applyStatusChange`,
+  `setStoryPoints`, `setDueDateFor`).
 - **`TaskNode.orderKey?: string`** — stored fractional-index key for this node's
   position among its siblings (see *Order keys*). Backfilled by `ensureOrderKeys`
   in `parseProject`, so legacy files gain keys on first load.
@@ -93,16 +94,17 @@ inserts stay sorted and unique).
 
 `merge(local, remote)` unions by id. For a node on both sides:
 
-- **Scalar fields** (`content`, `storyPoints`, `dueDate`, `collapsed`,
-  `parentId`, `orderKey`, `time`) — **last-write-wins by `updatedAt`**, taken
-  **wholesale** (the newer node's whole scalar payload wins; we do not field-merge).
-  Ties break deterministically by id so both peers converge to the same result.
-- **`status`** — resolved on its **own clock** (`statusUpdatedAt`), *not* `updatedAt`.
-  Any edit bumps `updatedAt`, so without this a content edit on one device would
-  clobber a concurrent status change on another — and leave `status` disagreeing with
-  the `statusHistory` tail that `lifecycle.ts`/`analytics.ts` replay (`completedAt`
-  reads the last history entry; `computeRollup` reads `status` — they must agree).
-  Legacy nodes without `statusUpdatedAt` fall back to `updatedAt`. Ties break by id.
+- **Shared scalars** (`content`, `parentId`, `orderKey`, `time`) — **last-write-wins
+  by `updatedAt`**, taken **wholesale**. Ties break deterministically by id.
+- **`status` / `storyPoints` / `dueDate`** — each resolved on its **own clock**
+  (`statusUpdatedAt` / `storyPointsUpdatedAt` / `dueDateUpdatedAt`), *not* the shared
+  `updatedAt`. Every edit bumps `updatedAt`, so per-field clocks stop an edit to one
+  field from clobbering a concurrent edit to another on the same node. For `status`
+  this also keeps it consistent with the `statusHistory` tail that
+  `lifecycle.ts`/`analytics.ts` replay. Legacy nodes fall back to `updatedAt`.
+- **`collapsed`** — **device-local view state, not synced.** It deliberately never
+  bumps `updatedAt` (so it can't win a merge and revert another device's edit), and
+  the client re-applies its own collapse on adopt (`applyLocalView`).
 - **`statusHistory`** — **append-only**: union both sides, dedupe by (`at`+`status`),
   keep sorted by `at`. Never lost regardless of which scalar side wins.
 - **Tombstones (`deletedAt`)** — a delete wins over a live edit **only if
@@ -141,11 +143,11 @@ The store stamps the clocks: `setProjectName` / `toggleTimer` bump
   and the other machine's banked seconds are dropped. The future refinement is
   **interval-union** (store runs as intervals and union them). We deliberately did
   **not** rewrite the live timer model for this step.
-- **Per-node LWW for most scalars** — `status` is now merged per-field (its own
-  clock). The other scalars (`content`, `storyPoints`, `dueDate`, `collapsed`,
-  `time`, position) are still whole-node LWW, so concurrent edits to two *different*
-  such fields of the same node keep only the newer node's version of both. Extending
-  the per-field treatment to `time`/`storyPoints` is the next candidate.
+- **Whole-node LWW for the remaining shared scalars** — `status`, `storyPoints`, and
+  `dueDate` merge per-field, and `collapsed` is device-local. `content`, `time`, and
+  tree position (`parentId`/`orderKey`) are still whole-node LWW, so concurrent edits
+  to two *different* of those on the same node keep only the newer node's version of
+  both. (`content` would need a text CRDT; `time` is the timer item below.)
 - **Status edge cases still open** — (1) deleting a *status definition*
   (`removeStatus`) demotes tasks by writing `status = null` directly, bypassing the
   status path, so it bumps neither `statusUpdatedAt` nor `updatedAt` — that demotion

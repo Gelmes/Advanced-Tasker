@@ -21,8 +21,10 @@ export interface SyncNode {
   collapsed: boolean;
   time: TimeTracking;
   statusHistory: StatusEvent[];
-  /** ISO time of the last status change; the per-field clock for merging `status`. */
+  /** Per-field merge clocks (see TaskNode). */
   statusUpdatedAt?: string | null;
+  storyPointsUpdatedAt?: string | null;
+  dueDateUpdatedAt?: string | null;
   createdAt: string;
   updatedAt: string;
   /** Tombstone timestamp, or null for a live node. */
@@ -59,6 +61,8 @@ function toSyncNode(node: TaskNode, parentId: string | null, orderKey: string): 
     time: { ...node.time },
     statusHistory: node.statusHistory.map((e) => ({ ...e })),
     statusUpdatedAt: node.statusUpdatedAt ?? null,
+    storyPointsUpdatedAt: node.storyPointsUpdatedAt ?? null,
+    dueDateUpdatedAt: node.dueDateUpdatedAt ?? null,
     createdAt: node.createdAt,
     updatedAt: node.updatedAt,
     deletedAt: node.deletedAt ?? null,
@@ -143,9 +147,11 @@ function toTaskNode(n: SyncNode, children: TaskNode[]): TaskNode {
     storyPoints: n.storyPoints,
     time: { ...n.time },
     statusHistory: n.statusHistory.map((e) => ({ ...e })),
-    // Only carry statusUpdatedAt when set, so a node that never had one round-trips
+    // Only carry per-field clocks when set, so a node that never had one round-trips
     // to the same shape (mirrors how deletedAt is omitted for live nodes).
     ...(n.statusUpdatedAt ? { statusUpdatedAt: n.statusUpdatedAt } : {}),
+    ...(n.storyPointsUpdatedAt ? { storyPointsUpdatedAt: n.storyPointsUpdatedAt } : {}),
+    ...(n.dueDateUpdatedAt ? { dueDateUpdatedAt: n.dueDateUpdatedAt } : {}),
     dueDate: n.dueDate,
     orderKey: n.orderKey,
     collapsed: n.collapsed,

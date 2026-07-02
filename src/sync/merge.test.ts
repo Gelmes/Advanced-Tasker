@@ -110,6 +110,30 @@ describe('merge', () => {
     expect(byId(merge([older], [newer]))['x'].status).toBe('done');
   });
 
+  it('(g) storyPoints and dueDate merge on their own clocks — no cross-field clobber', () => {
+    const T1 = '2026-01-01T00:00:00.000Z';
+    const T2 = '2026-01-02T00:00:00.000Z';
+    const T3 = '2026-01-03T00:00:00.000Z';
+    // A changed points at T3 (its updatedAt is newest). B changed dueDate at T2.
+    const a = sn('x', {
+      storyPoints: 5,
+      storyPointsUpdatedAt: T3,
+      dueDate: null,
+      dueDateUpdatedAt: T1,
+      updatedAt: T3,
+    });
+    const b = sn('x', {
+      storyPoints: null,
+      storyPointsUpdatedAt: T1,
+      dueDate: '2026-02-01',
+      dueDateUpdatedAt: T2,
+      updatedAt: T2,
+    });
+    const m = byId(merge([a], [b]))['x'];
+    expect(m.storyPoints).toBe(5); // A's newer points win
+    expect(m.dueDate).toBe('2026-02-01'); // B's dueDate NOT clobbered by A's newer node
+  });
+
   it('(c) delete newer than edit wins (node stays deleted)', () => {
     const edit = sn('x', { content: 'edited', updatedAt: '2026-01-01T00:00:00.000Z' });
     const del = sn('x', {

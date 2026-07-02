@@ -58,7 +58,7 @@ import {
   type FolderEntry,
 } from '../persistence/handleStore';
 import { getStoredToken, storeToken } from '../persistence/secretStore';
-import { fingerprint } from '../sync/project';
+import { applyLocalView, fingerprint } from '../sync/project';
 
 // Global app state: the project tree, transient UI state (selection + mode), and
 // the bound file. Structural changes go through pure ops in model/tree.ts via the
@@ -482,8 +482,10 @@ export const useStore = create<AppState>((set, get) => {
           set({ syncing: false, syncStatus: 'Up to date.' });
           return;
         }
-        // Remote changes arrived: adopt them. A remote merge isn't an undoable local
+        // Remote changes arrived: adopt them, but keep this device's own collapse
+        // state (it's device-local, SYNC.md). A remote merge isn't an undoable local
         // step, so reset history rather than record one; keep the bound file and save.
+        applyLocalView(merged, current);
         resetHistory();
         const sel = get().selectedId;
         const keepSel = sel && findNode(merged.root.children, sel) ? sel : null;
@@ -711,7 +713,9 @@ export const useStore = create<AppState>((set, get) => {
       apply((root) => {
         const node = findNode(root, id);
         if (node) {
-          node.dueDate = dueDate || null;
+          const next = dueDate || null;
+          if (node.dueDate !== next) node.dueDateUpdatedAt = nowIso(); // per-field clock
+          node.dueDate = next;
           touch(node);
         }
       }, `due:${id}`),

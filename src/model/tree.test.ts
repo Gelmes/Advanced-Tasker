@@ -14,6 +14,7 @@ import {
   moveWithinSiblings,
   outdent,
   reassignIds,
+  setCollapsed,
   setStatus,
   setStoryPoints,
   visibleNodes,
@@ -175,6 +176,16 @@ describe('setStatus / setStoryPoints', () => {
     const root = sample();
     setStoryPoints(root, 'b', 5);
     expect(findNode(root, 'b')?.storyPoints).toBe(5);
+  });
+});
+
+describe('setCollapsed', () => {
+  it('toggles collapse without bumping updatedAt (device-local view state)', () => {
+    const root = sample();
+    const before = findNode(root, 'a')!.updatedAt;
+    setCollapsed(root, 'a', true);
+    expect(findNode(root, 'a')!.collapsed).toBe(true);
+    expect(findNode(root, 'a')!.updatedAt).toBe(before); // unchanged — not synced
   });
 });
 

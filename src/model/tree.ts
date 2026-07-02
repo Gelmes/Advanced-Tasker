@@ -235,6 +235,7 @@ export function setStatus(root: TaskNode[], id: string, status: string | null): 
 export function setStoryPoints(root: TaskNode[], id: string, points: number | null): void {
   const node = findNode(root, id);
   if (!node) return;
+  if (node.storyPoints !== points) node.storyPointsUpdatedAt = nowIso(); // per-field clock
   node.storyPoints = points;
   touch(node);
 }
@@ -259,8 +260,10 @@ export function cycleValue<T>(
 export function setCollapsed(root: TaskNode[], id: string, collapsed: boolean): void {
   const node = findNode(root, id);
   if (!node || !node.children.length) return;
+  // Collapse is device-local view state (SYNC.md): it deliberately does NOT bump
+  // `updatedAt`, so it can't win a whole-node LWW merge and revert another device's
+  // edit. The store's applySilent still marks the file dirty, so it persists locally.
   node.collapsed = collapsed;
-  touch(node);
 }
 
 /** True when the node has no rendered content (used for Backspace-deletes-empty). */

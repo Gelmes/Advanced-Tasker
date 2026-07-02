@@ -37,6 +37,12 @@ export interface TaskNode {
    * back to `updatedAt` during merge.
    */
   statusUpdatedAt?: string | null;
+  /**
+   * Per-field merge clocks (like `statusUpdatedAt`) so a concurrent edit to one of
+   * these fields on another device isn't clobbered by the whole-node LWW winner.
+   */
+  storyPointsUpdatedAt?: string | null;
+  dueDateUpdatedAt?: string | null;
   /** Optional target date (YYYY-MM-DD) — drives the burndown ideal line. */
   dueDate?: string | null;
   /**

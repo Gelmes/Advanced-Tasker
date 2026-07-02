@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ProjectFile, StatusDef, TaskNode } from '../model/types';
 import { createEmptyProject } from '../model/factory';
 import { ensureOrderKeys } from '../model/orderKey';
-import { fingerprint, mergeProjects, mergeStatuses } from './project';
+import { applyLocalView, fingerprint, mergeProjects, mergeStatuses } from './project';
 
 function node(id: string, over: Partial<TaskNode> = {}): TaskNode {
   return {
@@ -97,6 +97,15 @@ describe('mergeProjects', () => {
       node('b'),
     ]);
     expect(fingerprint(edited)).not.toBe(fingerprint(p));
+  });
+
+  it('applyLocalView keeps this device’s collapse state when adopting a merge', () => {
+    const base = createEmptyProject('V');
+    const local = version(base, {}, [node('a', { collapsed: true, children: [node('a1')] })]);
+    // The merged project came back from the server with a expanded.
+    const merged = version(base, {}, [node('a', { collapsed: false, children: [node('a1')] })]);
+    applyLocalView(merged, local);
+    expect(merged.root.children[0].collapsed).toBe(true); // local view preserved
   });
 
   it('is order-independent for statuses and metadata', () => {

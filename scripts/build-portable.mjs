@@ -15,6 +15,9 @@ console.log('› Staging app…');
 rmSync(stage, { recursive: true, force: true });
 mkdirSync(stage, { recursive: true });
 cpSync(resolve(root, 'electron/main.js'), resolve(stage, 'main.js'));
+// preload.js sits beside main.js (main resolves it via __dirname) — needed for the
+// encrypted-token bridge; without it the app silently falls back to localStorage.
+cpSync(resolve(root, 'electron/preload.js'), resolve(stage, 'preload.js'));
 cpSync(resolve(root, 'dist'), resolve(stage, 'dist'), { recursive: true });
 // A self-contained package.json so packager uses main.js as the entry.
 writeFileSync(

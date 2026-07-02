@@ -33,6 +33,12 @@ export async function getProject(id: string): Promise<ProjectFile | null> {
   return rows.length ? (rows[0].data as ProjectFile) : null;
 }
 
+/** The row's `updated_at` (ISO) for change-polling, or null if the project is unknown. */
+export async function getVersion(id: string): Promise<string | null> {
+  const { rows } = await pool.query('select updated_at from projects where id = $1', [id]);
+  return rows.length ? new Date(rows[0].updated_at).toISOString() : null;
+}
+
 /** All projects on the server as `{ id, name }`, for the pull-by-id picker. */
 export async function listProjects(): Promise<Array<{ id: string; name: string }>> {
   const { rows } = await pool.query(

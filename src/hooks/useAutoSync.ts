@@ -1,13 +1,15 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
 
-// Background sync (SYNC.md): pull-merge when a file-bound project opens/switches, and
-// push-merge a few seconds after the user stops editing. `syncNow()` is a no-op when
-// nothing actually changed (fingerprint match) and refuses to clobber edits made
-// while a request is in flight — so this never disturbs local state needlessly.
+// Background sync (SYNC.md): pull-merge when a file-bound project opens/switches,
+// push-merge a few seconds after the user stops editing, and poll so a push from
+// another device lands here within ~POLL_MS. `syncNow()` is a no-op when nothing
+// changed (fingerprint match) and refuses to clobber edits made while a request is in
+// flight — so none of this disturbs local state needlessly.
 
 const DEBOUNCE_MS = 4000;
 const ON_OPEN_MS = 400;
+const POLL_MS = 15000;
 
 export function useAutoSync() {
   const projectId = useStore((s) => s.project.id);
@@ -31,4 +33,27 @@ export function useAutoSync() {
     const t = setTimeout(() => void useStore.getState().syncNow(), DEBOUNCE_MS);
     return () => clearTimeout(t);
   }, [active, editRev]);
+
+  // Poll the server's cheap `/version`; pull only when it advances past what we last
+  // saw — i.e. another device pushed. Baselines (no pull) on first tick / project switch.
+  const lastSeen = useRef<{ id: string; version: string | null }>({ id: '', version: null });
+  useEffect(() => {
+    if (!active) return;
+    const tick = async () => {
+      const store = useStore.getState();
+      const version = await store.fetchRemoteVersion();
+      if (version === null) return;
+      if (lastSeen.current.id !== projectId) {
+        lastSeen.current = { id: projectId, version }; // baseline after mount/switch
+        return;
+      }
+      if (version !== lastSeen.current.version) {
+        await store.syncNow();
+        // Adopt the post-sync version so our own resulting push doesn't re-trigger.
+        lastSeen.current = { id: projectId, version: (await store.fetchRemoteVersion()) ?? version };
+      }
+    };
+    const iv = setInterval(() => void tick(), POLL_MS);
+    return () => clearInterval(iv);
+  }, [active, projectId]);
 }

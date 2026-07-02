@@ -186,6 +186,8 @@ export interface AppState {
   setSyncConfig: (url: string, token: string) => void;
   /** Push the current project to the sync server and adopt the merged result. */
   syncNow: () => Promise<void>;
+  /** The server's current version (row `updated_at`) for the current project, or null. */
+  fetchRemoteVersion: () => Promise<string | null>;
   /** Load the saved sync token from secure storage into state (call on startup). */
   loadSecrets: () => Promise<void>;
   /** List the projects held on the sync server as `{ id, name }`. */
@@ -510,6 +512,22 @@ export const useStore = create<AppState>((set, get) => {
         if (get().fileHandle) await get().saveProject();
       } catch (e: any) {
         set({ syncing: false, syncStatus: `Sync error: ${e?.message ?? 'network'}` });
+      }
+    },
+
+    fetchRemoteVersion: async () => {
+      const { syncUrl, syncToken, project } = get();
+      const base = syncUrl.trim().replace(/\/+$/, '');
+      if (!base || !syncToken) return null;
+      try {
+        const res = await fetch(`${base}/sync/${encodeURIComponent(project.id)}/version`, {
+          headers: { authorization: `Bearer ${syncToken}` },
+        });
+        if (!res.ok) return null;
+        const data = (await res.json()) as { version: string | null };
+        return typeof data.version === 'string' ? data.version : null;
+      } catch {
+        return null;
       }
     },
 

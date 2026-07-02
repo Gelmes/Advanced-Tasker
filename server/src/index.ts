@@ -5,7 +5,7 @@
 // `owner` column is already there for it.
 
 import express, { type NextFunction, type Request, type Response } from 'express';
-import { getProject, initSchema, listProjects, syncProject } from './db';
+import { getProject, getVersion, initSchema, listProjects, syncProject } from './db';
 import type { ProjectFile } from '../../src/model/types';
 
 const app = express();
@@ -44,6 +44,16 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 app.get('/projects', async (_req: Request, res: Response) => {
   try {
     res.json(await listProjects());
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// Lightweight change-poll: clients fetch this cheap value and only do a full sync
+// when it advances past the version they last saw.
+app.get('/sync/:id/version', async (req: Request, res: Response) => {
+  try {
+    res.json({ version: await getVersion(req.params.id) });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }

@@ -89,6 +89,8 @@ export function parseProject(text: string): ProjectFile {
     pointScale: Array.isArray(raw.pointScale) ? raw.pointScale : [...DEFAULT_POINT_SCALE],
     activeTimerNodeId:
       typeof raw.activeTimerNodeId === 'string' ? raw.activeTimerNodeId : null,
+    tombstones:
+      raw.tombstones && typeof raw.tombstones === 'object' ? raw.tombstones : {},
     root: { children },
   };
 }

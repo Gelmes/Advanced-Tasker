@@ -99,6 +99,28 @@ describe('mergeProjects', () => {
     expect(fingerprint(edited)).not.toBe(fingerprint(p));
   });
 
+  it('(deletes) a tombstoned node stays deleted — does not resurrect from the other side', () => {
+    const base = createEmptyProject('D');
+    // Local deleted "a": gone from the tree, recorded as a tombstone.
+    const local = version(base, { tombstones: { a: '2026-06-01T00:00:00.000Z' } }, []);
+    // Remote still has "a" live (edited before the delete).
+    const remote = version(base, {}, [node('a', { updatedAt: '2026-01-01T00:00:00.000Z' })]);
+    const merged = mergeProjects(local, remote);
+    expect(merged.root.children.find((c) => c.id === 'a')).toBeUndefined();
+    expect(merged.tombstones?.a).toBe('2026-06-01T00:00:00.000Z'); // tombstone kept, propagates
+  });
+
+  it('(deletes) an edit newer than the delete resurrects the node', () => {
+    const base = createEmptyProject('D');
+    const local = version(base, { tombstones: { a: '2026-01-01T00:00:00.000Z' } }, []);
+    const remote = version(base, {}, [
+      node('a', { content: 'revived', updatedAt: '2026-06-01T00:00:00.000Z' }),
+    ]);
+    const merged = mergeProjects(local, remote);
+    expect(merged.root.children.find((c) => c.id === 'a')?.content).toBe('revived');
+    expect(merged.tombstones?.a).toBeUndefined(); // resurrected → tombstone dropped
+  });
+
   it('applyLocalView keeps this device’s collapse state when adopting a merge', () => {
     const base = createEmptyProject('V');
     const local = version(base, {}, [node('a', { collapsed: true, children: [node('a1')] })]);

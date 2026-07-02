@@ -6,7 +6,7 @@
 // Pure — no React, no I/O. Inputs are not mutated (the tree is rebuilt fresh).
 
 import type { ProjectFile, StatusDef, TaskNode } from '../model/types';
-import { flatten, rebuild } from './flatten';
+import { flatten, rebuild, type SyncNode } from './flatten';
 import { merge } from './merge';
 
 /**
@@ -41,7 +41,14 @@ function pickNewerStatus(a: StatusDef, b: StatusDef): StatusDef {
  * `mergeProjects(b, a)` converge.
  */
 export function mergeProjects(local: ProjectFile, remote: ProjectFile): ProjectFile {
-  const rebuilt = rebuild(merge(flatten(local), flatten(remote)));
+  // Include synthetic tombstone nodes so merge()'s deletedAt logic propagates deletes
+  // (an edit newer than the delete still resurrects, via resolveTombstone).
+  const mergedNodes = merge(flattenWithTombstones(local), flattenWithTombstones(remote));
+  const rebuilt = rebuild(mergedNodes); // excludes tombstoned nodes from the live tree
+  // Keep the surviving tombstones so late-joining devices also learn about deletes.
+  const tombstones: Record<string, string> = {};
+  for (const n of mergedNodes) if (n.deletedAt) tombstones[n.id] = n.deletedAt;
+
   const statuses = mergeStatuses(local.statuses, remote.statuses);
   const meta = pickMeta(local, remote);
 
@@ -72,7 +79,44 @@ export function mergeProjects(local: ProjectFile, remote: ProjectFile): ProjectF
     pointScale: meta.pointScale,
     activeTimerNodeId,
     updatedAt: newer(local.updatedAt, remote.updatedAt),
+    tombstones,
     root: rebuilt,
+  };
+}
+
+/**
+ * flatten() plus a synthetic tombstone SyncNode for each recorded deletion that isn't
+ * already a live node — so merge()'s deletedAt handling resolves delete-vs-edit.
+ */
+function flattenWithTombstones(p: ProjectFile): SyncNode[] {
+  const live = flatten(p);
+  const liveIds = new Set(live.map((n) => n.id));
+  const out = [...live];
+  for (const [id, at] of Object.entries(p.tombstones ?? {})) {
+    if (!liveIds.has(id)) out.push(tombstoneNode(id, at));
+  }
+  return out;
+}
+
+/**
+ * A minimal deletedAt SyncNode. Its `updatedAt` equals the deletion time, so a
+ * strictly-newer live edit on the other side resurrects it (see resolveTombstone).
+ */
+function tombstoneNode(id: string, at: string): SyncNode {
+  return {
+    id,
+    parentId: null,
+    orderKey: '',
+    content: '',
+    status: null,
+    storyPoints: null,
+    dueDate: null,
+    collapsed: false,
+    time: { accumulatedSeconds: 0, startedAt: null },
+    statusHistory: [],
+    createdAt: at,
+    updatedAt: at,
+    deletedAt: at,
   };
 }
 
@@ -110,7 +154,18 @@ export function fingerprint(p: ProjectFile): string {
     )
     .sort();
   const statuses = p.statuses.map((s) => `${s.id}|${s.updatedAt ?? ''}`).sort();
-  return JSON.stringify([p.updatedAt ?? '', p.name, p.activeTimerNodeId ?? '', p.pointScale, statuses, nodes]);
+  const tombs = Object.entries(p.tombstones ?? {})
+    .map(([id, at]) => `${id}|${at}`)
+    .sort();
+  return JSON.stringify([
+    p.updatedAt ?? '',
+    p.name,
+    p.activeTimerNodeId ?? '',
+    p.pointScale,
+    statuses,
+    tombs,
+    nodes,
+  ]);
 }
 
 /**

@@ -121,7 +121,11 @@ The whole pipeline is order-independent and symmetric: `merge(a, b)` and
 `merge()` above reconciles the node *tree*. `mergeProjects(local, remote)` wraps it
 and also reconciles the metadata on `ProjectFile`, then repairs references:
 
-- **Nodes** — `rebuild(merge(flatten(local), flatten(remote)))`.
+- **Nodes** — `rebuild(merge(...))` over both sides flattened. A delete hard-removes
+  from the live tree and records the id in `ProjectFile.tombstones` (id → time);
+  `mergeProjects` synthesises a tombstone node for each so the delete propagates
+  through `merge` (a strictly-newer edit still resurrects). Surviving tombstones are
+  kept on the merged project so late-joining devices also learn about the deletion.
 - **Statuses** — `mergeStatuses`: **union by id**, last-write-wins per status by
   `StatusDef.updatedAt`. An *added* status is never lost (the real data-loss risk).
   Order = local's, with remote-only statuses appended.
@@ -155,11 +159,14 @@ The store stamps the clocks: `setProjectName` / `toggleTimer` bump
   demoted to a note keeps its `statusHistory`, so `completedAt()` still reports it
   done — the analytics treatment of demoted-but-historied nodes is a separate design
   question, unchanged by this merge fix.
-- **Status / point-scale deletion isn't propagated** — `mergeStatuses` unions by id
-  with no tombstones, so a status removed on one device can reappear from a device
-  that still has it (additive-safe, but incomplete). `name` / `pointScale` merge as
-  whole values (LWW), so concurrent edits to different scale entries keep one side.
-  Proper deletion needs status tombstones — same pattern as nodes — deferred.
+- **Tombstones never GC** — deleted-node ids accumulate in `ProjectFile.tombstones`
+  forever. Fine at personal scale; a horizon-based sweep (drop tombstones older than
+  all devices' last sync) is the eventual cleanup.
+- **Status / point-scale deletion isn't propagated** — *node* deletes now propagate
+  via tombstones, but `mergeStatuses` still unions statuses by id with no tombstones,
+  so a *status definition* removed on one device can reappear from a device that still
+  has it (additive-safe, but incomplete). `name` / `pointScale` merge as whole values
+  (LWW). Proper status deletion needs the same tombstone pattern — deferred.
 - **Order-key rebalancing** — keys only grow; pathological repeated inserts at the
   same spot lengthen keys but never break ordering. No compaction pass yet.
 

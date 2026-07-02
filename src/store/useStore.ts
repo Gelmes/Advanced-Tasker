@@ -233,6 +233,16 @@ function readLS(key: string): string {
   }
 }
 
+/** Record deleted node ids on the project so the delete propagates through sync
+ *  instead of resurrecting from a device that still has them (SYNC.md "deletes"). */
+function recordTombstones(project: ProjectFile, ids: string[]): void {
+  if (!ids.length) return;
+  const at = nowIso();
+  const t = { ...(project.tombstones ?? {}) };
+  for (const id of ids) t[id] = at;
+  project.tombstones = t;
+}
+
 export const useStore = create<AppState>((set, get) => {
   // --- Undo/redo history ------------------------------------------------------
   // Each committed mutation pushes the *previous* project onto `past`. Because
@@ -625,11 +635,15 @@ export const useStore = create<AppState>((set, get) => {
     },
 
     deleteSelected: () => {
-      const { selectedId } = get();
+      const { selectedId, project } = get();
       if (!selectedId) return;
+      const target = findNode(project.root.children, selectedId);
+      const ids: string[] = [];
+      if (target) walk([target], (n) => ids.push(n.id));
       let nextSel: string | null = null;
-      apply((root) => {
-        nextSel = deleteNode(root, selectedId);
+      applyProject((p) => {
+        nextSel = deleteNode(p.root.children, selectedId);
+        recordTombstones(p, ids);
       });
       set({ selectedId: nextSel, mode: 'selected' });
     },
@@ -639,9 +653,12 @@ export const useStore = create<AppState>((set, get) => {
       if (!selectedId) return;
       const node = findNode(project.root.children, selectedId);
       if (!node || !isEmpty(node)) return;
+      const ids: string[] = [];
+      walk([node], (n) => ids.push(n.id));
       let nextSel: string | null = null;
-      apply((root) => {
-        nextSel = deleteNode(root, selectedId);
+      applyProject((p) => {
+        nextSel = deleteNode(p.root.children, selectedId);
+        recordTombstones(p, ids);
       });
       // Stay in editing so the caret lands in the previous row.
       set({ selectedId: nextSel, mode: nextSel ? 'editing' : 'selected' });
@@ -738,9 +755,12 @@ export const useStore = create<AppState>((set, get) => {
       const node = findNode(project.root.children, selectedId);
       if (!node) return;
       const snapshot = cloneNode(node);
+      const ids: string[] = [];
+      walk([node], (n) => ids.push(n.id));
       let nextSel: string | null = null;
-      apply((root) => {
-        nextSel = deleteNode(root, selectedId);
+      applyProject((p) => {
+        nextSel = deleteNode(p.root.children, selectedId);
+        recordTombstones(p, ids);
       });
       set({ clipboard: { node: snapshot, mode: 'cut' }, selectedId: nextSel, mode: 'selected' });
     },

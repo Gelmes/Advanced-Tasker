@@ -96,6 +96,12 @@ export interface ProjectFile {
   /** Id of the single node whose timer is running, or null. */
   activeTimerNodeId: string | null;
   /**
+   * Deleted node ids → deletion time (ISO). Deletes hard-remove from the live tree,
+   * so the delete must be recorded here to propagate through merge — otherwise a node
+   * resurrects from a device that still has it. A newer edit resurrects on purpose.
+   */
+  tombstones?: Record<string, string>;
+  /**
    * ISO time of the last change to project *metadata* (name, pointScale, active
    * timer) — the clock for merging those fields (SYNC.md). Node edits and status
    * edits carry their own clocks; this covers the rest.

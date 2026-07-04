@@ -102,6 +102,12 @@ export function WorkspaceBar() {
   const [syncOpen, setSyncOpen] = useState(false);
   const syncing = useStore((s) => s.syncing);
 
+  // Theme cycles system → light → dark (icon shows the current mode).
+  const themeMode = useStore((s) => s.themeMode);
+  const setThemeMode = useStore((s) => s.setThemeMode);
+  const cycleTheme = () =>
+    setThemeMode(themeMode === 'system' ? 'light' : themeMode === 'light' ? 'dark' : 'system');
+
   // File menu: anchored right under the File button via measureInWindow.
   const [fileMenuAt, setFileMenuAt] = useState<{ x: number; y: number } | null>(null);
   const fileBtnRef = useRef<View>(null);
@@ -157,6 +163,10 @@ export function WorkspaceBar() {
         <Sep />
         <Button label="⇅ Sync" onPress={() => setSyncOpen(true)} />
         <Button label="⌨ Shortcuts" onPress={() => setHelpOpen(true)} />
+        <Button
+          label={themeMode === 'system' ? '◐' : themeMode === 'dark' ? '☾' : '☀'}
+          onPress={cycleTheme}
+        />
       </View>
       <StatusPill tone={status.tone} label={status.label} />
 
@@ -211,7 +221,7 @@ const styles = StyleSheet.create({
     borderColor: color.border,
     flexShrink: 1,
   },
-  pillError: { backgroundColor: color.dangerSoft, borderColor: '#fecaca' },
+  pillError: { backgroundColor: color.dangerSoft, borderColor: color.border },
   pillDot: { width: 7, height: 7, borderRadius: 4 },
   pillText: { fontSize: font.sm, color: color.inkMid, flexShrink: 1 },
   pillTextError: { color: color.danger },

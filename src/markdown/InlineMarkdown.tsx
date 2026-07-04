@@ -1,5 +1,6 @@
 import { Fragment } from 'react';
 import { Linking, StyleSheet, Text, type StyleProp, type TextStyle } from 'react-native';
+import { color } from '../theme';
 import { parseInline } from './inline';
 
 interface Props {
@@ -68,9 +69,9 @@ const styles = StyleSheet.create({
   italic: { fontStyle: 'italic' },
   code: {
     fontFamily: 'monospace',
-    backgroundColor: '#f3f4f6',
-    color: '#be123c',
+    backgroundColor: color.codeBg,
+    color: color.danger,
   },
-  link: { color: '#2563eb', textDecorationLine: 'underline' },
-  tag: { color: '#7c3aed', fontWeight: '600' },
+  link: { color: color.info, textDecorationLine: 'underline' },
+  tag: { color: color.tagInk, fontWeight: '600' },
 });

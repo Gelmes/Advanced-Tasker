@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { color, font, radius, shadow } from '../theme';
 
 // A small anchored popup menu, used for right-click context menus (sidebar rows,
 // tabs) and the toolbar File menu. Rendered in a transparent Modal so a click
@@ -107,15 +108,15 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: MENU_WIDTH,
     paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: '#ffffff',
+    borderRadius: radius.md,
+    backgroundColor: color.surface,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.12)',
-  },
+    borderColor: color.border,
+    boxShadow: shadow.md,
+  } as any,
   item: { height: ITEM_H, justifyContent: 'center', paddingHorizontal: 12 },
-  itemHover: { backgroundColor: '#eef2ff' },
-  itemText: { fontSize: 13, color: '#374151' },
-  itemDanger: { color: '#b91c1c' },
-  divider: { height: 1, backgroundColor: '#e5e7eb', marginVertical: 4 },
+  itemHover: { backgroundColor: color.hover },
+  itemText: { fontSize: font.md, color: color.inkMid },
+  itemDanger: { color: color.danger },
+  divider: { height: 1, backgroundColor: color.border, marginVertical: 4 },
 });

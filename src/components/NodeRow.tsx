@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   noteRow: { borderLeftColor: color.border },
-  rowHover: { backgroundColor: '#fafafb' },
+  rowHover: { backgroundColor: color.hoverFaint },
   // Indent guide: a hairline per ancestor level, spanning the row's full height
   // (negative vertical margins reach through the row padding).
   guide: {
@@ -264,10 +264,10 @@ const styles = StyleSheet.create({
     marginTop: -6,
     marginBottom: -6,
     borderRightWidth: 1,
-    borderRightColor: '#e2e5ea',
+    borderRightColor: color.guide,
   },
   selected: {
-    boxShadow: `inset 0 0 0 1.5px ${color.accent}55, 0 1px 8px rgba(79, 70, 229, 0.10)`,
+    boxShadow: `inset 0 0 0 1.5px ${color.selectionRing}`,
     zIndex: 1, // lift above neighbouring rows so the shadow isn't clipped
   } as any,
   dragging: { opacity: 0.4 },
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     lineHeight: LINE_HEIGHT,
-    color: '#111827',
+    color: color.ink,
     padding: 0,
     margin: 0,
     borderWidth: 0,

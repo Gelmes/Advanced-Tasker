@@ -1,5 +1,6 @@
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useStore } from '../store/useStore';
+import { color, font, radius, shadow } from '../theme';
 
 // Reference of all key bindings (mirrors SPEC.md §3 + the global save key).
 
@@ -124,7 +125,7 @@ export function ShortcutsHelp({ visible, onClose }: Props) {
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: '#00000055',
+    backgroundColor: '#00000066',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
@@ -133,10 +134,13 @@ const styles = StyleSheet.create({
     width: 480,
     maxWidth: '100%',
     maxHeight: '85%',
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    backgroundColor: color.surface,
+    borderWidth: 1,
+    borderColor: color.border,
+    borderRadius: radius.lg,
     padding: 16,
-  },
+    boxShadow: shadow.lg,
+  } as any,
   toggle: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -144,45 +148,46 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 10,
     marginBottom: 8,
-    borderRadius: 8,
-    backgroundColor: '#f5f7ff',
+    borderRadius: radius.md,
+    backgroundColor: color.accentSoft,
   },
   checkbox: {
     width: 18,
     height: 18,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: '#9ca3af',
+    borderColor: color.inkSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkboxOn: { backgroundColor: '#4f46e5', borderColor: '#4f46e5' },
-  checkmark: { color: '#ffffff', fontSize: 12, fontWeight: '700' },
-  toggleLabel: { fontSize: 13, fontWeight: '600', color: '#111827' },
-  toggleHint: { fontSize: 11, color: '#9ca3af' },
+  checkboxOn: { backgroundColor: color.accent, borderColor: color.accent },
+  checkmark: { color: color.appBg, fontSize: 12, fontWeight: '700' },
+  toggleLabel: { fontSize: font.md, fontWeight: '600', color: color.ink },
+  toggleHint: { fontSize: font.xs, color: color.inkSoft },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 8,
   },
-  title: { fontSize: 16, fontWeight: '600', color: '#111827' },
-  close: { fontSize: 16, color: '#6b7280' },
+  title: { fontSize: font.lg, fontWeight: '600', color: color.ink },
+  close: { fontSize: font.lg, color: color.inkSoft },
   body: { flexGrow: 0 },
   section: { marginTop: 12 },
   sectionTitle: {
-    fontSize: 12,
+    fontSize: font.sm,
     fontWeight: '700',
-    color: '#6b7280',
+    color: color.inkSoft,
     textTransform: 'uppercase',
+    letterSpacing: 0.6,
     marginBottom: 4,
   },
   row: { flexDirection: 'row', paddingVertical: 3, gap: 12 },
   keys: {
     width: 170,
-    fontSize: 13,
-    color: '#111827',
+    fontSize: font.md,
+    color: color.ink,
     fontVariant: ['tabular-nums'],
   },
-  desc: { flex: 1, fontSize: 13, color: '#374151' },
+  desc: { flex: 1, fontSize: font.md, color: color.inkMid },
 });

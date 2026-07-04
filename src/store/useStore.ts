@@ -119,6 +119,9 @@ export interface AppState {
   syncStatus: string | null;
   /** Monotonic counter bumped on every user edit — drives debounced auto-sync. */
   editRev: number;
+  /** UI theme: follow the OS, or force light/dark. Persisted. */
+  themeMode: 'system' | 'light' | 'dark';
+  setThemeMode: (mode: 'system' | 'light' | 'dark') => void;
 
   // Selection / mode
   select: (id: string | null) => void;
@@ -463,6 +466,16 @@ export const useStore = create<AppState>((set, get) => {
     syncing: false,
     syncStatus: null,
     editRev: 0,
+    themeMode: (readLS('advanced-tasker:theme') || 'system') as 'system' | 'light' | 'dark',
+
+    setThemeMode: (mode) => {
+      try {
+        if (typeof localStorage !== 'undefined') localStorage.setItem('advanced-tasker:theme', mode);
+      } catch {
+        // ignore storage failures
+      }
+      set({ themeMode: mode });
+    },
 
     select: (id) => set({ selectedId: id }),
     setMode: (mode) => set({ mode }),

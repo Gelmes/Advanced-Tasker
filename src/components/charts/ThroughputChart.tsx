@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 import type { Forecast, WeekBucket } from '../../model/analytics';
+import { color } from '../../theme';
 
 // Throughput view: completed points per week (bars) + a Monte-Carlo finish
 // forecast. Bars are plain Views; no SVG needed for a simple bar column.
@@ -74,18 +75,18 @@ const styles = StyleSheet.create({
   wrap: { gap: 14 },
   stats: { flexDirection: 'row', gap: 24 },
   stat: { gap: 1 },
-  statValue: { fontSize: 18, fontWeight: '700', color: '#111827', fontVariant: ['tabular-nums'] },
-  statLabel: { fontSize: 11, color: '#9ca3af' },
+  statValue: { fontSize: 18, fontWeight: '700', color: color.ink, fontVariant: ['tabular-nums'] },
+  statLabel: { fontSize: 11, color: color.inkSoft },
   forecast: {
-    backgroundColor: '#f5f7ff',
+    backgroundColor: color.accentSoft,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     gap: 2,
   },
-  forecastLabel: { fontSize: 11, color: '#6b7280', textTransform: 'uppercase', fontWeight: '700' },
-  forecastValue: { fontSize: 14, color: '#111827' },
-  empty: { padding: 24, color: '#9ca3af', textAlign: 'center' },
+  forecastLabel: { fontSize: 11, color: color.inkSoft, textTransform: 'uppercase', fontWeight: '700' },
+  forecastValue: { fontSize: 14, color: color.ink },
+  empty: { padding: 24, color: color.inkSoft, textAlign: 'center' },
   chart: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -93,7 +94,7 @@ const styles = StyleSheet.create({
     minHeight: BAR_AREA + 30,
   },
   col: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 3 },
-  barValue: { fontSize: 10, color: '#9ca3af', fontVariant: ['tabular-nums'] },
+  barValue: { fontSize: 10, color: color.inkSoft, fontVariant: ['tabular-nums'] },
   bar: { width: '70%', minWidth: 8, backgroundColor: '#22c55e', borderRadius: 3 },
-  colLabel: { fontSize: 10, color: '#9ca3af' },
+  colLabel: { fontSize: 10, color: color.inkSoft },
 });

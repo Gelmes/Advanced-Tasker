@@ -18,11 +18,26 @@ interface Props {
   xDomain: [number, number];
   yMax: number;
   xTicks: { value: number; label: string }[];
+  /**
+   * Concrete hex for grid/labels — SVG attributes can't resolve the CSS-variable
+   * tokens, so the caller passes colors from the resolved palette (see theme.ts).
+   */
+  gridColor?: string;
+  labelColor?: string;
 }
 
 const M = { left: 40, right: 14, top: 14, bottom: 26 };
 
-export function LineChart({ width, height, series, xDomain, yMax, xTicks }: Props) {
+export function LineChart({
+  width,
+  height,
+  series,
+  xDomain,
+  yMax,
+  xTicks,
+  gridColor = '#eef0f2',
+  labelColor = '#9ca3af',
+}: Props) {
   const plotW = width - M.left - M.right;
   const plotH = height - M.top - M.bottom;
   const sx = linear(xDomain[0], xDomain[1], M.left, M.left + plotW);
@@ -41,10 +56,10 @@ export function LineChart({ width, height, series, xDomain, yMax, xTicks }: Prop
             y1={sy(t)}
             x2={M.left + plotW}
             y2={sy(t)}
-            stroke="#eef0f2"
+            stroke={gridColor}
             strokeWidth={1}
           />
-          <SvgText x={M.left - 6} y={sy(t) + 4} fontSize={10} fill="#9ca3af" textAnchor="end">
+          <SvgText x={M.left - 6} y={sy(t) + 4} fontSize={10} fill={labelColor} textAnchor="end">
             {String(t)}
           </SvgText>
         </G>
@@ -57,7 +72,7 @@ export function LineChart({ width, height, series, xDomain, yMax, xTicks }: Prop
           x={sx(t.value)}
           y={M.top + plotH + 16}
           fontSize={10}
-          fill="#9ca3af"
+          fill={labelColor}
           textAnchor="middle"
         >
           {t.label}

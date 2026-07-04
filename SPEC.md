@@ -153,9 +153,14 @@ resets history.
 
 ## 4. UI rules
 
-- **Design tokens (`src/theme.ts`):** one palette (cool neutral surfaces, a single
-  indigo accent, semantic success/warn/danger), a type scale (11–16), radii and
-  shadows. Components use tokens, not ad-hoc hex values.
+- **Design tokens (`src/theme.ts`):** light **and dark** palettes (cool neutral
+  surfaces, a single indigo accent, semantic success/warn/danger), a type scale
+  (11–16), radii and shadows. Components style with CSS-variable references
+  (`var(--at-…)`) — never ad-hoc hex — so the theme switches by flipping a
+  `data-theme` attribute, no re-render. Theme mode (system / light / dark) is a
+  toolbar toggle (◐/☀/☾), persisted; `system` tracks the OS via matchMedia.
+  Exception: SVG chart internals take concrete hex from the resolved palette
+  (CSS variables aren't valid in SVG attributes).
 - **Row coloring:** task rows get a subtle left-border + faint background tint in the
   status color. Notes are uncolored and gain a faint hover background.
 - **Selection** is an inset accent ring (not a drop shadow); the drag grip is hidden

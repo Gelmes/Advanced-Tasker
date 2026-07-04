@@ -13,6 +13,7 @@ import { elapsedSeconds, formatDuration, parseDuration } from '../model/time';
 import { findNode } from '../model/tree';
 import type { StatusDef, TaskNode } from '../model/types';
 import { useStore } from '../store/useStore';
+import { color, font } from '../theme';
 
 // Right-side panel showing the selected node's captured lifecycle data — the
 // human-readable view of statusHistory + timer + rollups (SPEC.md §6).
@@ -222,7 +223,7 @@ export function TaskDetails() {
                 const s = statusOf(e.status);
                 return (
                   <View key={i} style={styles.histRow}>
-                    <View style={[styles.dot, { backgroundColor: s?.color ?? '#9ca3af' }]} />
+                    <View style={[styles.dot, { backgroundColor: s?.color ?? color.inkSoft }]} />
                     <Text style={styles.histStatus}>{s?.label ?? e.status}</Text>
                     <Text style={styles.histAt}>{fmtDate(e.at)}</Text>
                   </View>
@@ -239,20 +240,20 @@ export function TaskDetails() {
 const styles = StyleSheet.create({
   panel: {
     width: 280,
-    backgroundColor: '#fafafa',
+    backgroundColor: color.surface,
     borderLeftWidth: 1,
-    borderLeftColor: '#e5e7eb',
+    borderLeftColor: color.border,
   },
   header: {
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: color.border,
   },
-  title: { fontSize: 13, fontWeight: '600', color: '#374151' },
-  empty: { padding: 14, fontSize: 12, color: '#9ca3af' },
+  title: { fontSize: font.md, fontWeight: '600', color: color.inkMid },
+  empty: { padding: 14, fontSize: font.sm, color: color.inkSoft },
   body: { padding: 14, gap: 14 },
-  nodeTitle: { fontSize: 15, fontWeight: '600', color: '#111827' },
+  nodeTitle: { fontSize: 15, fontWeight: '600', color: color.ink },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   chip: {
     flexDirection: 'row',
@@ -261,37 +262,40 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 12,
-    backgroundColor: '#eef2f7',
+    backgroundColor: color.hover,
   },
-  chipText: { fontSize: 12, color: '#374151' },
+  chipText: { fontSize: font.sm, color: color.inkMid },
   dot: { width: 8, height: 8, borderRadius: 4 },
   section: { gap: 6 },
   sectionTitle: {
-    fontSize: 11,
+    fontSize: font.xs,
     fontWeight: '700',
-    color: '#9ca3af',
+    color: color.inkSoft,
     textTransform: 'uppercase',
+    letterSpacing: 0.6,
   },
   field: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   fieldLabelWrap: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  fieldLabel: { fontSize: 13, color: '#6b7280' },
-  info: { fontSize: 11, color: '#9ca3af', cursor: 'help' } as any,
-  fieldValue: { fontSize: 13, color: '#111827', fontVariant: ['tabular-nums'] },
+  fieldLabel: { fontSize: font.md, color: color.inkSoft },
+  info: { fontSize: font.xs, color: color.inkSoft, cursor: 'help' } as any,
+  fieldValue: { fontSize: font.md, color: color.ink, fontVariant: ['tabular-nums'] },
   effortInput: {
     textAlign: 'right',
     minWidth: 70,
     padding: 0,
     outlineWidth: 0,
+    backgroundColor: 'transparent',
   } as any,
   dueInput: {
-    fontSize: 13,
-    color: '#111827',
+    fontSize: font.md,
+    color: color.ink,
     textAlign: 'right',
     minWidth: 110,
     padding: 0,
     outlineWidth: 0,
+    backgroundColor: 'transparent',
   } as any,
   histRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 2 },
-  histStatus: { flex: 1, fontSize: 13, color: '#374151' },
-  histAt: { fontSize: 12, color: '#9ca3af', fontVariant: ['tabular-nums'] },
+  histStatus: { flex: 1, fontSize: font.md, color: color.inkMid },
+  histAt: { fontSize: font.sm, color: color.inkSoft, fontVariant: ['tabular-nums'] },
 });

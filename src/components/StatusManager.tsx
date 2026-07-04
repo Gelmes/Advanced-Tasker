@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import type { StatusKind } from '../model/types';
 import { useStore } from '../store/useStore';
+import { color, font, radius, shadow } from '../theme';
 
 // Configure the project's status set (SPEC.md §2, §6). On web the color is edited
 // with a native picker and the kind with a dropdown; rows can be reordered (which
@@ -39,9 +40,9 @@ const selectStyle: CSSProperties = {
   fontSize: 13,
   padding: '5px 6px',
   borderRadius: 6,
-  border: '1px solid #d1d5db',
-  color: '#374151',
-  background: '#ffffff',
+  border: '1px solid ' + color.borderStrong,
+  color: color.inkMid,
+  background: color.surface,
   cursor: 'pointer',
 };
 
@@ -142,7 +143,7 @@ export function StatusManager({ visible, onClose }: Props) {
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: '#00000055',
+    backgroundColor: '#00000066',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
@@ -151,8 +152,11 @@ const styles = StyleSheet.create({
     width: 480,
     maxWidth: '100%',
     maxHeight: '80%',
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    backgroundColor: color.surface,
+    borderWidth: 1,
+    borderColor: color.border,
+    borderRadius: radius.lg,
+    boxShadow: shadow.lg,
     padding: 16,
   },
   header: {
@@ -160,9 +164,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  title: { fontSize: 16, fontWeight: '600', color: '#111827' },
-  close: { fontSize: 16, color: '#6b7280' },
-  subtitle: { fontSize: 12, color: '#9ca3af', marginTop: 2, marginBottom: 10 },
+  title: { fontSize: font.lg, fontWeight: '600', color: color.ink },
+  close: { fontSize: font.lg, color: color.inkSoft },
+  subtitle: { fontSize: font.sm, color: color.inkSoft, marginTop: 2, marginBottom: 10 },
   list: { flexGrow: 0 },
   statusRow: {
     flexDirection: 'row',
@@ -171,12 +175,12 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   reorder: { width: 16, alignItems: 'center', justifyContent: 'center' },
-  arrow: { fontSize: 9, color: '#6b7280', lineHeight: 11 },
-  arrowOff: { color: '#e5e7eb' },
+  arrow: { fontSize: 9, color: color.inkSoft, lineHeight: 11 },
+  arrowOff: { color: color.border },
   swatch: { width: 18, height: 18, borderRadius: 9 },
   field: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: color.borderStrong,
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 5,
@@ -184,16 +188,16 @@ const styles = StyleSheet.create({
     outlineWidth: 0,
   } as any,
   label: { flex: 1 },
-  kind: { width: 72, alignItems: 'center', backgroundColor: '#f9fafb' },
-  kindText: { fontSize: 12, color: '#374151' },
-  delete: { fontSize: 13, color: '#b91c1c', paddingHorizontal: 2 },
+  kind: { width: 72, alignItems: 'center', backgroundColor: color.hover },
+  kindText: { fontSize: font.sm, color: color.inkMid },
+  delete: { fontSize: font.md, color: color.danger, paddingHorizontal: 2 },
   add: {
     marginTop: 12,
     alignSelf: 'flex-start',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 6,
-    backgroundColor: '#eef2ff',
+    backgroundColor: color.accentSoft,
   },
-  addText: { fontSize: 13, color: '#3730a3' },
+  addText: { fontSize: font.md, color: color.accentInk },
 });

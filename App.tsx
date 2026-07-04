@@ -11,11 +11,14 @@ import { useAutosave } from './src/hooks/useAutosave';
 import { useAutoSync } from './src/hooks/useAutoSync';
 import { useKeyboardNav } from './src/hooks/useKeyboardNav';
 import { useStore } from './src/store/useStore';
+import { color, themeCss } from './src/theme';
 
 export default function App() {
   useKeyboardNav();
   useAutosave();
   useAutoSync();
+
+  const themeMode = useStore((s) => s.themeMode);
 
   // Load the saved sync token and reopen the last workspace folder on startup.
   useEffect(() => {
@@ -23,17 +26,37 @@ export default function App() {
     void useStore.getState().restoreWorkspace();
   }, []);
 
-  // The app shows its own selection (the row box-shadow), so suppress the browser's
-  // focus outline that otherwise sticks on the last-clicked row as you navigate.
+  // Inject the theme palettes (CSS variables) once, and suppress the browser's
+  // focus outline — the app draws its own selection ring.
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof document === 'undefined') return;
     const style = document.createElement('style');
-    style.textContent = ':focus, :focus-visible { outline: none !important; }';
+    style.textContent =
+      themeCss() + '\n:focus, :focus-visible { outline: none !important; }';
     document.head.appendChild(style);
     return () => {
       document.head.removeChild(style);
     };
   }, []);
+
+  // Apply the chosen theme as a data attribute on <html>; in `system` mode track
+  // the OS preference live via matchMedia.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const rootEl = document.documentElement;
+    const apply = (dark: boolean) => {
+      if (dark) rootEl.dataset.theme = 'dark';
+      else delete rootEl.dataset.theme;
+    };
+    if (themeMode === 'system') {
+      const mq = window.matchMedia?.('(prefers-color-scheme: dark)');
+      apply(!!mq?.matches);
+      const onChange = (e: MediaQueryListEvent) => apply(e.matches);
+      mq?.addEventListener?.('change', onChange);
+      return () => mq?.removeEventListener?.('change', onChange);
+    }
+    apply(themeMode === 'dark');
+  }, [themeMode]);
 
   return (
     <SafeAreaView style={styles.app}>
@@ -54,7 +77,7 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  app: { flex: 1, backgroundColor: '#ffffff' },
+  app: { flex: 1, backgroundColor: color.appBg },
   body: { flex: 1, flexDirection: 'row' },
   main: { flex: 1 },
 });

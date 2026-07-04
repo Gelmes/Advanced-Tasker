@@ -19,6 +19,7 @@ import { useStore } from '../../store/useStore';
 import { CycleTimeChart } from './CycleTimeChart';
 import { LineChart, type Series } from './LineChart';
 import { ThroughputChart } from './ThroughputChart';
+import { color, palettes, resolvedTheme } from '../../theme';
 
 const CHART_W = 660;
 const CHART_H = 300;
@@ -118,6 +119,7 @@ export function ChartsModal({ visible, onClose }: Props) {
   ];
 
   const hasData = tasks.length > 0 && days.length > 0;
+  const th = palettes[resolvedTheme()];
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -170,6 +172,8 @@ export function ChartsModal({ visible, onClose }: Props) {
                   xDomain={xDomain}
                   yMax={burnupYMax}
                   xTicks={xTicks}
+                  gridColor={th.hover}
+                  labelColor={th.inkSoft}
                 />
                 <Legend
                   items={[
@@ -187,6 +191,8 @@ export function ChartsModal({ visible, onClose }: Props) {
                   xDomain={xDomain}
                   yMax={burndownYMax}
                   xTicks={xTicks}
+                  gridColor={th.hover}
+                  labelColor={th.inkSoft}
                 />
                 <Legend
                   items={[
@@ -221,7 +227,7 @@ export function ChartsModal({ visible, onClose }: Props) {
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: '#00000055',
+    backgroundColor: '#00000066',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
@@ -230,7 +236,9 @@ const styles = StyleSheet.create({
     width: '92%',
     maxWidth: 960,
     maxHeight: '90%',
-    backgroundColor: '#ffffff',
+    backgroundColor: color.surface,
+    borderWidth: 1,
+    borderColor: color.border,
     borderRadius: 12,
     padding: 16,
   },
@@ -240,25 +248,25 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 12,
   },
-  title: { fontSize: 16, fontWeight: '600', color: '#111827' },
-  scope: { fontSize: 12, color: '#6b7280', marginTop: 1 },
-  close: { fontSize: 16, color: '#6b7280' },
+  title: { fontSize: 16, fontWeight: '600', color: color.ink },
+  scope: { fontSize: 12, color: color.inkSoft, marginTop: 1 },
+  close: { fontSize: 16, color: color.inkSoft },
   tabs: { flexDirection: 'row', gap: 6, marginBottom: 12 },
   tab: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: color.hover,
   },
-  tabActive: { backgroundColor: '#e0e7ff' },
-  tabText: { fontSize: 13, color: '#6b7280' },
-  tabTextActive: { color: '#3730a3', fontWeight: '600' },
+  tabActive: { backgroundColor: color.accentSoft },
+  tabText: { fontSize: 13, color: color.inkMid },
+  tabTextActive: { color: color.accentInk, fontWeight: '600' },
   body: { gap: 10 },
-  empty: { padding: 24, color: '#9ca3af', textAlign: 'center' },
-  hint: { fontSize: 12, color: '#9ca3af', fontStyle: 'italic' },
+  empty: { padding: 24, color: color.inkSoft, textAlign: 'center' },
+  hint: { fontSize: 12, color: color.inkSoft, fontStyle: 'italic' },
   legend: { flexDirection: 'row', gap: 16 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendSwatch: { width: 12, height: 12, borderRadius: 3, borderWidth: 2 },
   legendDashed: { borderStyle: 'dashed' },
-  legendText: { fontSize: 12, color: '#374151' },
+  legendText: { fontSize: 12, color: color.inkMid },
 });

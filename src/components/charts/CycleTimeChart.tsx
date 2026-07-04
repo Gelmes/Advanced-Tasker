@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { mean, median, percentile, type CycleItem } from '../../model/analytics';
+import { color } from '../../theme';
 
 // Cycle-time view: per-task horizontal bars (newest completion first) plus summary
 // stats. Bars use plain Views — no SVG needed for horizontal bars.
@@ -58,15 +59,15 @@ export function CycleTimeChart({ items }: { items: CycleItem[] }) {
 
 const styles = StyleSheet.create({
   wrap: { gap: 14 },
-  empty: { padding: 24, color: '#9ca3af', textAlign: 'center' },
+  empty: { padding: 24, color: color.inkSoft, textAlign: 'center' },
   stats: { flexDirection: 'row', gap: 20, flexWrap: 'wrap' },
   stat: { gap: 1 },
-  statValue: { fontSize: 16, fontWeight: '700', color: '#111827', fontVariant: ['tabular-nums'] },
-  statLabel: { fontSize: 11, color: '#9ca3af' },
+  statValue: { fontSize: 16, fontWeight: '700', color: color.ink, fontVariant: ['tabular-nums'] },
+  statLabel: { fontSize: 11, color: color.inkSoft },
   bars: { gap: 6 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  label: { width: 170, fontSize: 12, color: '#374151' },
-  track: { flex: 1, height: 14, backgroundColor: '#f3f4f6', borderRadius: 3, overflow: 'hidden' },
+  label: { width: 170, fontSize: 12, color: color.inkMid },
+  track: { flex: 1, height: 14, backgroundColor: color.hover, borderRadius: 3, overflow: 'hidden' },
   fill: { height: 14, backgroundColor: '#3b82f6', borderRadius: 3 },
-  value: { width: 48, fontSize: 12, color: '#6b7280', textAlign: 'right', fontVariant: ['tabular-nums'] },
+  value: { width: 48, fontSize: 12, color: color.inkSoft, textAlign: 'right', fontVariant: ['tabular-nums'] },
 });

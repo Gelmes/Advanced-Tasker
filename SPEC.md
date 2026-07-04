@@ -153,13 +153,24 @@ resets history.
 
 ## 4. UI rules
 
+- **Design tokens (`src/theme.ts`):** one palette (cool neutral surfaces, a single
+  indigo accent, semantic success/warn/danger), a type scale (11–16), radii and
+  shadows. Components use tokens, not ad-hoc hex values.
 - **Row coloring:** task rows get a subtle left-border + faint background tint in the
-  status color. Notes are uncolored.
+  status color. Notes are uncolored and gain a faint hover background.
+- **Selection** is an inset accent ring (not a drop shadow); the drag grip is hidden
+  until the row is hovered or selected.
 - **Markdown:** node content renders as markdown when the row is *not* being edited;
   shows raw markdown text when editing.
 - **Rollup display:** each parent row shows summed tracked time, summed story points,
   and completion % of its subtree, derived live.
-- Indentation communicates depth; collapsed nodes hide their subtree and show a count.
+- Indentation communicates depth with **indent guides** (one hairline per ancestor
+  level); collapsed nodes hide their subtree.
+- **Toolbar:** ghost buttons grouped by thin separators; File ▾ menu; save/sync state
+  is a **status pill** with a colored dot (green saved · amber unsaved/in-memory ·
+  blue busy · red error).
+- **Empty project:** a welcome card teaching the core keys (Enter/Tab/S/P/Space/?),
+  not a bare "no tasks" line. Active tab shows an amber dot while unsaved.
 - **Tabs:** open projects appear as tabs above the outline. Click an inactive tab to
   switch; **double-click** any tab to rename it inline; right-click for Rename / Close;
   ✕ closes it. Renaming a project renames its **`.json` file on disk** to match (the

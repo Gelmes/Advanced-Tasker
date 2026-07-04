@@ -7,6 +7,7 @@ import {
   tagCountsFromEntries,
 } from '../model/searchIndex';
 import { useStore } from '../store/useStore';
+import { color, font, radius } from '../theme';
 import { ContextMenu, MouseArea, type MenuEntry } from './ContextMenu';
 
 // Left slideout: remembered workspace folders (switch / forget), and a tabbed
@@ -200,9 +201,10 @@ export function ProjectSidebar() {
                 >
                   <Pressable
                     onPress={() => void switchProject(p.fileName)}
-                    style={({ pressed }) => [
+                    style={({ pressed, hovered }: any) => [
                       styles.item,
                       styles.itemGrow,
+                      hovered && !isActive && styles.itemHover,
                       isActive && styles.itemActive,
                       pressed && styles.itemPressed,
                     ]}
@@ -307,9 +309,9 @@ export function ProjectSidebar() {
 const styles = StyleSheet.create({
   sidebar: {
     width: 240,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: color.surfaceAlt,
     borderRightWidth: 1,
-    borderRightColor: '#e5e7eb',
+    borderRightColor: color.border,
   },
   scroll: { flex: 1 },
   sectionHeader: {
@@ -317,47 +319,56 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 12,
-    paddingTop: 12,
+    paddingTop: 14,
     paddingBottom: 6,
   },
   sectionTitle: {
-    fontSize: 11,
+    fontSize: font.xs,
     fontWeight: '700',
-    color: '#9ca3af',
+    color: color.inkSoft,
     textTransform: 'uppercase',
+    letterSpacing: 0.8,
     flexShrink: 1,
   },
-  add: { fontSize: 12, color: '#3730a3' },
-  empty: { paddingHorizontal: 12, paddingVertical: 6, fontSize: 12, color: '#9ca3af' },
+  add: { fontSize: font.sm, color: color.accent, fontWeight: '600' },
+  empty: { paddingHorizontal: 12, paddingVertical: 6, fontSize: font.sm, color: color.inkSoft },
   folderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    marginHorizontal: 6,
+    paddingHorizontal: 6,
     paddingVertical: 6,
     gap: 6,
+    borderRadius: radius.sm,
   },
   folderPress: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
   folderIcon: { fontSize: 13 },
-  remove: { fontSize: 11, color: '#9ca3af' },
-  divider: { height: 1, backgroundColor: '#e5e7eb', marginVertical: 6 },
+  remove: { fontSize: font.xs, color: color.inkSoft },
+  divider: { height: 1, backgroundColor: color.border, marginVertical: 8 },
   tabs: { flexDirection: 'row', gap: 6, paddingHorizontal: 12, paddingBottom: 8 },
-  tab: { flex: 1, paddingVertical: 5, borderRadius: 6, backgroundColor: '#e5e7eb' },
-  tabActive: { backgroundColor: '#e0e7ff' },
-  tabText: { fontSize: 12, color: '#6b7280', textAlign: 'center' },
-  tabTextActive: { color: '#3730a3', fontWeight: '600' },
-  item: { paddingHorizontal: 12, paddingVertical: 8 },
+  tab: { flex: 1, paddingVertical: 5, borderRadius: radius.sm, backgroundColor: color.hover },
+  tabActive: { backgroundColor: color.accentSoft },
+  tabText: { fontSize: font.sm, color: color.inkMid, textAlign: 'center' },
+  tabTextActive: { color: color.accentInk, fontWeight: '600' },
+  item: {
+    marginHorizontal: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 7,
+    borderRadius: radius.sm,
+  },
   itemGrow: { flexGrow: 1, minWidth: 0 },
   renameInput: {
-    fontSize: 13,
-    color: '#111827',
+    fontSize: font.md,
+    color: color.ink,
     fontWeight: '600',
     padding: 0,
     outlineWidth: 0,
   } as any,
-  itemActive: { backgroundColor: '#e0e7ff' },
-  itemPressed: { backgroundColor: '#e5e7eb' },
-  itemText: { fontSize: 13, color: '#374151', flexShrink: 1 },
-  itemTextActive: { color: '#3730a3', fontWeight: '600' },
+  itemHover: { backgroundColor: color.hover },
+  itemActive: { backgroundColor: color.accentSoft },
+  itemPressed: { backgroundColor: color.hover },
+  itemText: { fontSize: font.md, color: color.inkMid, flexShrink: 1 },
+  itemTextActive: { color: color.accentInk, fontWeight: '600' },
   search: {
     marginHorizontal: 12,
     marginBottom: 8,
@@ -381,17 +392,17 @@ const styles = StyleSheet.create({
   chipText: { fontSize: 12, color: '#6d28d9' },
   chipCount: { color: '#a78bfa', fontVariant: ['tabular-nums'] },
   result: { paddingHorizontal: 12, paddingVertical: 6 },
-  resultText: { fontSize: 13, color: '#374151' },
-  hit: { backgroundColor: '#fde68a', color: '#111827', fontWeight: '600' },
-  resultCrumb: { fontSize: 11, color: '#9ca3af', marginTop: 1 },
-  footer: { padding: 8, borderTopWidth: 1, borderTopColor: '#e5e7eb' },
+  resultText: { fontSize: font.md, color: color.inkMid },
+  hit: { backgroundColor: '#fde68a', color: color.ink, fontWeight: '600' },
+  resultCrumb: { fontSize: font.xs, color: color.inkSoft, marginTop: 1 },
+  footer: { padding: 8, borderTopWidth: 1, borderTopColor: color.border },
   action: {
     paddingHorizontal: 10,
     paddingVertical: 7,
-    borderRadius: 6,
-    backgroundColor: '#ffffff',
+    borderRadius: radius.sm,
+    backgroundColor: color.appBg,
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: color.borderStrong,
   },
-  actionText: { fontSize: 13, color: '#374151', textAlign: 'center' },
+  actionText: { fontSize: font.md, color: color.inkMid, textAlign: 'center', fontWeight: '600' },
 });

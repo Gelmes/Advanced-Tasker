@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useStore } from '../store/useStore';
+import { color, font, radius } from '../theme';
 import { ChartsModal } from './charts/ChartsModal';
 import { ContextMenu, type MenuEntry } from './ContextMenu';
 import { ShortcutsHelp } from './ShortcutsHelp';
@@ -8,29 +9,71 @@ import { StatusManager } from './StatusManager';
 import { SyncSettings } from './SyncSettings';
 
 // Top toolbar: a File dropdown for the rarely-used file actions (autosave makes
-// Save/Save As occasional), the frequent tools as buttons, and save status.
+// Save/Save As occasional), the frequent tools as ghost buttons grouped by
+// separators, and a save/sync status pill on the right.
 
 function Button({
   label,
   onPress,
   disabled,
+  emphasis,
 }: {
   label: string;
   onPress: () => void;
   disabled?: boolean;
+  /** Slightly heavier text (the File menu button). */
+  emphasis?: boolean;
 }) {
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={({ pressed }) => [
+      style={({ pressed, hovered }: any) => [
         styles.btn,
-        pressed && styles.btnPressed,
+        hovered && !disabled && styles.btnHover,
+        pressed && !disabled && styles.btnPressed,
         disabled && styles.btnDisabled,
       ]}
     >
-      <Text style={[styles.btnText, disabled && styles.btnTextDisabled]}>{label}</Text>
+      <Text
+        style={[styles.btnText, emphasis && styles.btnTextEmphasis, disabled && styles.btnTextDisabled]}
+      >
+        {label}
+      </Text>
     </Pressable>
+  );
+}
+
+/** Thin vertical rule between toolbar groups. */
+function Sep() {
+  return <View style={styles.sep} />;
+}
+
+/** Save/sync state as a pill with a colored dot — read at a glance. */
+function StatusPill({
+  tone,
+  label,
+}: {
+  tone: 'ok' | 'warn' | 'error' | 'busy' | 'muted';
+  label: string;
+}) {
+  const dot = {
+    ok: color.success,
+    warn: color.warn,
+    error: color.danger,
+    busy: color.info,
+    muted: color.inkSoft,
+  }[tone];
+  return (
+    <View style={[styles.pill, tone === 'error' && styles.pillError]}>
+      <View style={[styles.pillDot, { backgroundColor: dot }]} />
+      <Text
+        style={[styles.pillText, tone === 'error' && styles.pillTextError]}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+    </View>
   );
 }
 
@@ -85,34 +128,37 @@ export function WorkspaceBar() {
 
   // An unbound project exists only in memory — say so loudly (a quiet "No file"
   // read like a fact, not a warning that closing the app loses the project).
-  const status = saving
-    ? 'Saving…'
-    : error
-      ? error
-      : !fileName
-        ? 'In memory only — File ▾ › Save as… to keep'
-        : dirty
-          ? '• Unsaved'
-          : 'Saved';
+  const status: { tone: 'ok' | 'warn' | 'error' | 'busy' | 'muted'; label: string } = syncing
+    ? { tone: 'busy', label: 'Syncing…' }
+    : saving
+      ? { tone: 'busy', label: 'Saving…' }
+      : error
+        ? { tone: 'error', label: error }
+        : !fileName
+          ? { tone: 'warn', label: 'In memory only — File ▾ › Save as… to keep' }
+          : dirty
+            ? { tone: 'warn', label: 'Unsaved' }
+            : { tone: 'ok', label: 'Saved' };
 
   return (
     <View style={styles.bar}>
       <View style={styles.group}>
         <Button label="☰" onPress={toggleSidebar} />
         <View ref={fileBtnRef} collapsable={false}>
-          <Button label="File ▾" onPress={openFileMenu} />
+          <Button label="File ▾" onPress={openFileMenu} emphasis />
         </View>
+        <Sep />
         <Button label="↶ Undo" onPress={undo} disabled={!canUndo} />
         <Button label="↷ Redo" onPress={redo} disabled={!canRedo} />
+        <Sep />
         <Button label="Statuses" onPress={() => setStatusManagerOpen(true)} />
         <Button label="📊 Charts" onPress={() => setChartsOpen(true)} />
         <Button label="Details" onPress={toggleDetails} />
-        <Button label={syncing ? '⇅ Syncing…' : '⇅ Sync'} onPress={() => setSyncOpen(true)} />
+        <Sep />
+        <Button label="⇅ Sync" onPress={() => setSyncOpen(true)} />
         <Button label="⌨ Shortcuts" onPress={() => setHelpOpen(true)} />
       </View>
-      <Text style={[styles.status, error && styles.statusError]} numberOfLines={1}>
-        {status}
-      </Text>
+      <StatusPill tone={status.tone} label={status.label} />
 
       <ContextMenu at={fileMenuAt} items={fileMenuItems} onClose={() => setFileMenuAt(null)} />
       <StatusManager visible={statusManagerOpen} onClose={() => setStatusManagerOpen(false)} />
@@ -128,26 +174,45 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-    backgroundColor: '#f9fafb',
+    borderBottomColor: color.border,
+    backgroundColor: color.surface,
     gap: 12,
   },
-  group: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
-  btn: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
+  group: { flexDirection: 'row', gap: 2, flexWrap: 'wrap', alignItems: 'center' },
+  sep: {
+    width: 1,
+    height: 18,
+    backgroundColor: color.border,
+    marginHorizontal: 6,
   },
-  btnPressed: { backgroundColor: '#eef2ff' },
-  btnDisabled: { opacity: 0.4 },
-  btnText: { fontSize: 13, color: '#374151' },
-  btnTextDisabled: { color: '#9ca3af' },
-  status: { fontSize: 12, color: '#6b7280', flexShrink: 1 },
-  statusError: { color: '#b91c1c' },
+  btn: {
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: radius.sm,
+  },
+  btnHover: { backgroundColor: color.hover },
+  btnPressed: { backgroundColor: color.accentSoft },
+  btnDisabled: { opacity: 0.35 },
+  btnText: { fontSize: font.md, color: color.inkMid },
+  btnTextEmphasis: { fontWeight: '600', color: color.ink },
+  btnTextDisabled: { color: color.inkSoft },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: color.surfaceAlt,
+    borderWidth: 1,
+    borderColor: color.border,
+    flexShrink: 1,
+  },
+  pillError: { backgroundColor: color.dangerSoft, borderColor: '#fecaca' },
+  pillDot: { width: 7, height: 7, borderRadius: 4 },
+  pillText: { fontSize: font.sm, color: color.inkMid, flexShrink: 1 },
+  pillTextError: { color: color.danger },
 });

@@ -14,6 +14,7 @@ import { completion, computeRollup } from '../model/rollups';
 import { elapsedSeconds, formatDuration, isRunning } from '../model/time';
 import type { StatusDef, TaskNode } from '../model/types';
 import { useStore } from '../store/useStore';
+import { color } from '../theme';
 
 const INDENT_PX = 22;
 // Shared line metrics so the editing TextInput matches the display text exactly
@@ -125,17 +126,18 @@ export function NodeRow({ node, depth, statuses, doneStatusIds, nowMs }: Props) 
 
   return (
     <Fragment>
-      <View
-        ref={(el) => {
+      <Pressable
+        ref={(el: any) => {
           register(node.id)(el);
           setRow(node.id, el);
         }}
-        style={[
+        onPress={() => select(node.id)}
+        style={({ hovered }: any) => [
           styles.row,
-          { paddingLeft: 8 + depth * INDENT_PX },
           status
             ? { borderLeftColor: status.color, backgroundColor: tint(status.color) }
             : styles.noteRow,
+          hovered && !status && styles.rowHover,
           isSelected && !isEditing && styles.selected,
           dropHere === 'inside' && styles.dropInside,
           dropHere === 'before' && styles.dropBefore,
@@ -143,7 +145,13 @@ export function NodeRow({ node, depth, statuses, doneStatusIds, nowMs }: Props) 
           isDragging && styles.dragging,
         ]}
       >
-        <View ref={gripRef} style={styles.grip}>
+        {({ hovered }: any) => (
+          <Fragment>
+        {/* Indent guides: one hairline per ancestor level. */}
+        {Array.from({ length: depth }).map((_, i) => (
+          <View key={i} style={styles.guide} />
+        ))}
+        <View ref={gripRef} style={[styles.grip, !hovered && !isSelected && styles.gripHidden]}>
           <Text style={styles.gripText}>⠿</Text>
         </View>
 
@@ -210,7 +218,9 @@ export function NodeRow({ node, depth, statuses, doneStatusIds, nowMs }: Props) 
             {node.storyPoints != null ? `${node.storyPoints} pt` : '+pt'}
           </Text>
         </Pressable>
-      </View>
+          </Fragment>
+        )}
+      </Pressable>
 
       {!node.collapsed &&
         node.children.map((child) => (
@@ -239,19 +249,31 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     paddingVertical: 6,
     paddingRight: 12,
+    paddingLeft: 8,
     borderLeftWidth: 3,
     borderLeftColor: 'transparent',
     gap: 8,
   },
-  noteRow: { borderLeftColor: '#e5e7eb' },
+  noteRow: { borderLeftColor: color.border },
+  rowHover: { backgroundColor: '#fafafb' },
+  // Indent guide: a hairline per ancestor level, spanning the row's full height
+  // (negative vertical margins reach through the row padding).
+  guide: {
+    width: INDENT_PX - 8, // the row gap contributes the other 8px of each level
+    alignSelf: 'stretch',
+    marginTop: -6,
+    marginBottom: -6,
+    borderRightWidth: 1,
+    borderRightColor: '#e2e5ea',
+  },
   selected: {
-    boxShadow: '0px 2px 10px 0px rgba(0,0,0,0.25)',
+    boxShadow: `inset 0 0 0 1.5px ${color.accent}55, 0 1px 8px rgba(79, 70, 229, 0.10)`,
     zIndex: 1, // lift above neighbouring rows so the shadow isn't clipped
   } as any,
   dragging: { opacity: 0.4 },
-  dropInside: { backgroundColor: '#dbeafe' },
-  dropBefore: { borderTopWidth: 2, borderTopColor: '#2563eb' },
-  dropAfter: { borderBottomWidth: 2, borderBottomColor: '#2563eb' },
+  dropInside: { backgroundColor: color.infoSoft },
+  dropBefore: { borderTopWidth: 2, borderTopColor: color.accent },
+  dropAfter: { borderBottomWidth: 2, borderBottomColor: color.accent },
   // The controls each occupy one line-height box so they align with the first
   // line of (possibly wrapped) content.
   grip: {
@@ -261,21 +283,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     cursor: 'grab',
   } as any,
-  gripText: { fontSize: 12, color: '#d1d5db' },
-  twisty: { width: 18, lineHeight: LINE_HEIGHT, color: '#6b7280', fontSize: 16, textAlign: 'center' },
-  leaf: { width: 18, lineHeight: LINE_HEIGHT, color: '#d1d5db', fontSize: 12, textAlign: 'center' },
+  gripHidden: { opacity: 0 },
+  gripText: { fontSize: 12, color: color.inkFaint },
+  twisty: { width: 18, lineHeight: LINE_HEIGHT, color: color.inkMid, fontSize: 16, textAlign: 'center' },
+  leaf: { width: 18, lineHeight: LINE_HEIGHT, color: color.inkFaint, fontSize: 12, textAlign: 'center' },
   statusDot: { width: 10, height: 10, borderRadius: 5, marginTop: (LINE_HEIGHT - 10) / 2 },
   statusDotEmpty: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderWidth: 1.5,
+    borderColor: color.borderStrong,
     marginTop: (LINE_HEIGHT - 10) / 2,
   },
   contentWrap: { flex: 1 },
-  content: { fontSize: 14, lineHeight: LINE_HEIGHT, color: '#111827' },
-  placeholder: { color: '#9ca3af', fontStyle: 'italic' },
+  content: { fontSize: 14, lineHeight: LINE_HEIGHT, color: color.ink },
+  placeholder: { color: color.inkSoft, fontStyle: 'italic' },
   input: {
     flex: 1,
     fontSize: 14,
@@ -294,7 +317,7 @@ const styles = StyleSheet.create({
   rollup: {
     fontSize: 11,
     lineHeight: LINE_HEIGHT,
-    color: '#9ca3af',
+    color: color.inkSoft,
     fontVariant: ['tabular-nums'],
   },
   timer: {
@@ -304,16 +327,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     borderRadius: 5,
   },
-  timerRunning: { backgroundColor: '#dcfce7' },
-  timerText: { fontSize: 12, color: '#9ca3af', fontVariant: ['tabular-nums'] },
-  timerTextRunning: { color: '#15803d', fontWeight: '600' },
+  timerRunning: { backgroundColor: color.successSoft },
+  timerText: { fontSize: 12, color: color.inkSoft, fontVariant: ['tabular-nums'] },
+  timerTextRunning: { color: color.success, fontWeight: '600' },
   points: {
     width: 44,
     lineHeight: LINE_HEIGHT,
     textAlign: 'right',
     fontSize: 12,
-    color: '#6b7280',
+    color: color.inkMid,
     fontVariant: ['tabular-nums'],
   },
-  pointsEmpty: { color: '#d1d5db' },
+  pointsEmpty: { color: color.inkFaint },
 });

@@ -1384,3 +1384,9 @@ export const useStore = create<AppState>((set, get) => {
     },
   };
 });
+
+// Dev-only escape hatch so browser tooling (and manual debugging) can reach the
+// store — e.g. seeding a demo project in a preview. Stripped from prod builds.
+if (process.env.NODE_ENV !== 'production' && typeof globalThis !== 'undefined') {
+  (globalThis as any).__atStore = useStore;
+}

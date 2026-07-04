@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useStore } from '../store/useStore';
+import { color, font } from '../theme';
 import { ContextMenu, MouseArea, type MenuEntry } from './ContextMenu';
 
 // Tabs for the open projects. Click an inactive tab to switch; double-click a tab
@@ -13,6 +14,7 @@ export function TabBar() {
   const projects = useStore((s) => s.projects);
   const activeFile = useStore((s) => s.fileName);
   const activeName = useStore((s) => s.project.name);
+  const dirty = useStore((s) => s.dirty);
   const switchProject = useStore((s) => s.switchProject);
   const closeTab = useStore((s) => s.closeTab);
   const renameProjectFile = useStore((s) => s.renameProjectFile);
@@ -69,7 +71,13 @@ export function TabBar() {
                   onDoubleClick={() => startRename(fileName)}
                   onContextMenu={(x, y) => setMenu({ file: fileName, x, y })}
                 >
-                  <Pressable onPress={() => (isActive ? undefined : void switchProject(fileName))}>
+                  <Pressable
+                    onPress={() => (isActive ? undefined : void switchProject(fileName))}
+                    style={({ hovered }: any) => [
+                      styles.tabPress,
+                      hovered && !isActive && styles.tabHover,
+                    ]}
+                  >
                     <Text
                       style={[styles.tabText, isActive && styles.tabTextActive]}
                       numberOfLines={1}
@@ -79,7 +87,12 @@ export function TabBar() {
                   </Pressable>
                 </MouseArea>
               )}
-              <Pressable onPress={() => closeTab(fileName)} hitSlop={6} style={styles.close}>
+              {isActive && dirty ? <View style={styles.dirtyDot} /> : null}
+              <Pressable
+                onPress={() => closeTab(fileName)}
+                hitSlop={6}
+                style={({ hovered }: any) => [styles.close, hovered && styles.closeHover]}
+              >
                 <Text style={styles.closeText}>✕</Text>
               </Pressable>
             </View>
@@ -99,32 +112,48 @@ export function TabBar() {
 const styles = StyleSheet.create({
   bar: {
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-    backgroundColor: '#f3f4f6',
+    borderBottomColor: color.border,
+    backgroundColor: color.surfaceAlt,
   },
   row: { flexDirection: 'row', alignItems: 'stretch' },
   tab: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     paddingLeft: 12,
     paddingRight: 8,
     paddingVertical: 7,
     borderRightWidth: 1,
-    borderRightColor: '#e5e7eb',
+    borderRightColor: color.border,
+    // Editor-style active indicator: a 2px accent line along the bottom edge.
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+    marginBottom: -1, // sit on top of the bar's bottom border
     maxWidth: 220,
   },
-  tabActive: { backgroundColor: '#ffffff' },
-  tabText: { fontSize: 13, color: '#6b7280' },
-  tabTextActive: { color: '#111827', fontWeight: '600' },
+  tabActive: {
+    backgroundColor: color.appBg,
+    borderBottomColor: color.accent,
+  },
+  tabPress: { borderRadius: 4, marginHorizontal: -4, paddingHorizontal: 4 },
+  tabHover: { backgroundColor: color.hover },
+  tabText: { fontSize: font.md, color: color.inkSoft },
+  tabTextActive: { color: color.ink, fontWeight: '600' },
+  dirtyDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: color.warn,
+  },
   tabInput: {
-    fontSize: 13,
+    fontSize: font.md,
     fontWeight: '600',
-    color: '#111827',
+    color: color.ink,
     minWidth: 80,
     padding: 0,
     outlineWidth: 0,
   } as any,
-  close: { paddingHorizontal: 2 },
-  closeText: { fontSize: 11, color: '#9ca3af' },
+  close: { paddingHorizontal: 3, paddingVertical: 1, borderRadius: 4 },
+  closeHover: { backgroundColor: color.hover },
+  closeText: { fontSize: font.xs, color: color.inkSoft },
 });

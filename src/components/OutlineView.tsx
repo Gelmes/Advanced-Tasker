@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNow } from '../hooks/useNow';
 import { useStore } from '../store/useStore';
+import { color, font, radius } from '../theme';
 import { NodeRow } from './NodeRow';
 
 /** The main outline: the recursive node tree (title lives in the tab bar). */
@@ -18,7 +19,7 @@ export function OutlineView() {
     <View style={styles.container}>
       <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
         {project.root.children.length === 0 ? (
-          <Text style={styles.empty}>No tasks yet.</Text>
+          <EmptyState />
         ) : (
           project.root.children.map((node) => (
             <NodeRow
@@ -36,10 +37,50 @@ export function OutlineView() {
   );
 }
 
+/** A tiny keyboard-key chip for the welcome hints. */
+function Kbd({ children }: { children: string }) {
+  return (
+    <View style={styles.kbd}>
+      <Text style={styles.kbdText}>{children}</Text>
+    </View>
+  );
+}
+
+function Hint({ k, label }: { k: string; label: string }) {
+  return (
+    <View style={styles.hintRow}>
+      <Kbd>{k}</Kbd>
+      <Text style={styles.hintText}>{label}</Text>
+    </View>
+  );
+}
+
+/** Welcome card for an empty project — teach the core keys instead of a bare line. */
+function EmptyState() {
+  return (
+    <View style={styles.emptyWrap}>
+      <View style={styles.emptyCard}>
+        <Text style={styles.emptyTitle}>Start capturing</Text>
+        <Text style={styles.emptySub}>
+          Everything is a note until you give it a status — then it's a task.
+        </Text>
+        <View style={styles.hints}>
+          <Hint k="Enter" label="new item" />
+          <Hint k="Tab" label="indent under the item above" />
+          <Hint k="S" label="cycle status (makes it a task)" />
+          <Hint k="P" label="story points" />
+          <Hint k="Space" label="start / stop the timer" />
+          <Hint k="?" label="all shortcuts" />
+        </View>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: color.appBg,
   },
   list: {
     flex: 1,
@@ -50,8 +91,31 @@ const styles = StyleSheet.create({
     paddingTop: 0,
     paddingBottom: 8,
   },
-  empty: {
-    padding: 16,
-    color: '#9ca3af',
+  emptyWrap: { alignItems: 'flex-start', padding: 24 },
+  emptyCard: {
+    borderWidth: 1,
+    borderColor: color.border,
+    borderRadius: radius.lg,
+    backgroundColor: color.surface,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    maxWidth: 420,
   },
+  emptyTitle: { fontSize: font.lg, fontWeight: '600', color: color.ink },
+  emptySub: { fontSize: font.md, color: color.inkSoft, marginTop: 4, lineHeight: 19 },
+  hints: { marginTop: 14, gap: 8 },
+  hintRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  hintText: { fontSize: font.md, color: color.inkMid },
+  kbd: {
+    minWidth: 26,
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: color.borderStrong,
+    backgroundColor: color.appBg,
+    boxShadow: '0 1px 0 ' + color.borderStrong,
+  } as any,
+  kbdText: { fontSize: font.sm, color: color.inkMid, fontWeight: '600' },
 });

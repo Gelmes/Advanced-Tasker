@@ -72,3 +72,57 @@ export function uniqueFileName(existing: ProjectRef[], base = 'project'): string
     if (!taken.has(candidate)) return candidate;
   }
 }
+
+/** A display name reduced to a safe cross-platform file base (no extension). */
+export function sanitizeFileBase(name: string): string {
+  const base = name
+    .replace(/[\\/:*?"<>|]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\.+$/, '');
+  return base || 'project';
+}
+
+/** `<base>.json` if free in `existing`, else `<base>-2.json`, `<base>-3.json`, … */
+export function availableFileName(existing: ProjectRef[], displayName: string): string {
+  const base = sanitizeFileBase(displayName);
+  const taken = new Set(existing.map((r) => r.fileName.toLowerCase()));
+  if (!taken.has(`${base}.json`.toLowerCase())) return `${base}.json`;
+  for (let i = 2; ; i++) {
+    const candidate = `${base}-${i}.json`;
+    if (!taken.has(candidate.toLowerCase())) return candidate;
+  }
+}
+
+/**
+ * Rename a project file on disk. Prefers FileSystemFileHandle.move() (the same
+ * handle stays valid); falls back to create-new + copy + delete-old where move()
+ * isn't available. `current` (the in-memory project) is written on the fallback
+ * path so unsaved edits to the active project aren't lost mid-rename.
+ */
+export async function renameProjectFileOnDisk(
+  dir: FileRef,
+  ref: ProjectRef,
+  newFileName: string,
+  current?: ProjectFile | null,
+): Promise<ProjectRef> {
+  if (newFileName === ref.fileName) return ref;
+  const handle: any = ref.handle;
+  if (typeof handle.move === 'function') {
+    try {
+      await handle.move(newFileName);
+      return { ...ref, fileName: newFileName };
+    } catch {
+      // move() exists but refused (e.g. permission quirk) — fall through to copy.
+    }
+  }
+  const project = current ?? parseProject(await (await handle.getFile()).text());
+  const newRef = await createProjectFile(dir, newFileName, project);
+  await dir.removeEntry(ref.fileName);
+  return { ...newRef, name: project.name || newRef.name };
+}
+
+/** Delete a project file from the workspace folder. */
+export async function deleteProjectFile(dir: FileRef, fileName: string): Promise<void> {
+  await dir.removeEntry(fileName);
+}

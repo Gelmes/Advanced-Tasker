@@ -161,11 +161,17 @@ resets history.
   and completion % of its subtree, derived live.
 - Indentation communicates depth; collapsed nodes hide their subtree and show a count.
 - **Tabs:** open projects appear as tabs above the outline. Click an inactive tab to
-  switch; click the active tab to rename it inline; ✕ closes it. The title is shown
-  here only (not duplicated as a header or in the save indicator).
+  switch; **double-click** any tab to rename it inline; right-click for Rename / Close;
+  ✕ closes it. Renaming a project renames its **`.json` file on disk** to match (the
+  display name sanitized to a safe filename, uniquified on collision) — the two never
+  drift apart. The title is shown here only (not duplicated as a header or in the
+  save indicator).
 - **Project sidebar:** a left slideout with (1) every **remembered folder** (📁 — click to
   switch, ✕ to forget) and (2) a **Projects / Search** tab. Projects lists the open folder's
-  `.json` files; Search filters the current project by text or `#tag` (with clickable tag
+  `.json` files — a row opens on click, renames on double-click or right-click → Rename
+  (same file-rename semantics as tabs), and deletes via right-click → Delete… (confirm
+  dialog; removes the file from the folder — the sync server's copy is untouched);
+  Search filters the current project by text or `#tag` (with clickable tag
   chips) and jumps to a result on click (expanding its ancestors **and scrolling it into
   view**). `#hashtags` render in purple in the outline and open the tag search when tapped —
   use them as categories (#important, #bookmarked, …). Search is **cross-file**: a folder
@@ -189,10 +195,13 @@ resets history.
   browser the permission resets per session, so the sidebar opens to the remembered
   folder for one-click reopen.) Switching projects saves the current one first. A
   standalone single-file Open/Save As path also exists. Auto-save is debounced.
-- **Components:** `ProjectSidebar` (folder switcher) · `WorkspaceBar` (folder/file
-  actions, statuses, shortcuts, save state) · `TabBar` (open projects + editable title)
-  · `OutlineView` → recursive `NodeRow` · `StatusManager` · `ShortcutsHelp` ·
-  `DragProvider` (web pointer-event drag-and-drop).
+- **Components:** `ProjectSidebar` (folder switcher + project rename/delete) ·
+  `WorkspaceBar` (a **File ▾ menu** for new/open/save actions — desktop-menu style,
+  since autosave makes Save occasional — plus undo/redo, statuses, charts, details,
+  sync, shortcuts, save state) · `TabBar` (open projects + rename) · `ContextMenu`
+  (shared anchored popup for right-click menus and the File menu) · `OutlineView` →
+  recursive `NodeRow` · `StatusManager` · `ShortcutsHelp` · `DragProvider` (web
+  pointer-event drag-and-drop).
 
 ## 6. Milestones
 

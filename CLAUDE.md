@@ -103,10 +103,13 @@ The app is a tree of nodes rendered as an indented outline. Entry is `index.ts` 
   status inputs) so typing is never intercepted. `useNow` ticks once a second only while a
   timer runs. `useAutosave` debounces writes back to the bound file.
 
-- **`src/components/`** — `ProjectSidebar` (folder/project switcher, title-only) ·
-  `WorkspaceBar` (folder/file actions + Statuses + Shortcuts + save state) · `TabBar` (open
-  projects; click inactive to switch, click active to rename inline, ✕ to close — the title
-  is shown *only* here) · `OutlineView` → recursive `NodeRow` (twisty, drag grip, status
+- **`src/components/`** — `ProjectSidebar` (folder/project switcher; right-click a project
+  for Rename/Delete, double-click to rename) · `WorkspaceBar` (File ▾ menu for new/open/save
+  + Statuses + Charts + Sync + Shortcuts + save state) · `TabBar` (open projects; click
+  inactive to switch, double-click to rename — renaming also renames the .json on disk via
+  `renameProjectFile` — right-click for Rename/Close, ✕ to close; the title is shown *only*
+  here) · `ContextMenu` (shared anchored popup + web `MouseArea` right-click wrapper) ·
+  `OutlineView` → recursive `NodeRow` (twisty, drag grip, status
   dot, content, fixed-width timer + points so columns align) · `StatusManager` ·
   `ShortcutsHelp` · `DragContext` (`DragProvider`/`useDrag`: **native web pointer events**,
   not PanResponder — PanResponder doesn't capture the mouse on RNW; measures row rects on

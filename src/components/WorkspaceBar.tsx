@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useStore } from '../store/useStore';
 import { ChartsModal } from './charts/ChartsModal';
+import { ContextMenu, type MenuEntry } from './ContextMenu';
 import { ShortcutsHelp } from './ShortcutsHelp';
 import { StatusManager } from './StatusManager';
 import { SyncSettings } from './SyncSettings';
 
-// Top toolbar: workspace + file actions and save status.
+// Top toolbar: a File dropdown for the rarely-used file actions (autosave makes
+// Save/Save As occasional), the frequent tools as buttons, and save status.
 
 function Button({
   label,
@@ -57,6 +59,30 @@ export function WorkspaceBar() {
   const [syncOpen, setSyncOpen] = useState(false);
   const syncing = useStore((s) => s.syncing);
 
+  // File menu: anchored right under the File button via measureInWindow.
+  const [fileMenuAt, setFileMenuAt] = useState<{ x: number; y: number } | null>(null);
+  const fileBtnRef = useRef<View>(null);
+  const openFileMenu = () => {
+    const node: any = fileBtnRef.current;
+    if (node?.measureInWindow) {
+      node.measureInWindow((x: number, y: number, _w: number, h: number) =>
+        setFileMenuAt({ x, y: y + h + 4 }),
+      );
+    } else {
+      setFileMenuAt({ x: 48, y: 44 }); // sane fallback under the toolbar
+    }
+  };
+
+  const fileMenuItems: MenuEntry[] = [
+    { label: 'New project', onPress: () => void newProjectInFolder() },
+    'divider',
+    { label: 'Open folder…', onPress: () => void openFolder() },
+    { label: 'Open file…', onPress: () => void openProject() },
+    'divider',
+    { label: 'Save', onPress: () => void saveProject() },
+    { label: 'Save as…', onPress: () => void saveProjectAs() },
+  ];
+
   const status = saving
     ? 'Saving…'
     : error
@@ -71,11 +97,9 @@ export function WorkspaceBar() {
     <View style={styles.bar}>
       <View style={styles.group}>
         <Button label="☰" onPress={toggleSidebar} />
-        <Button label="Open Folder" onPress={() => void openFolder()} />
-        <Button label="New" onPress={() => void newProjectInFolder()} />
-        <Button label="Open File" onPress={() => void openProject()} />
-        <Button label="Save" onPress={() => void saveProject()} />
-        <Button label="Save As" onPress={() => void saveProjectAs()} />
+        <View ref={fileBtnRef} collapsable={false}>
+          <Button label="File ▾" onPress={openFileMenu} />
+        </View>
         <Button label="↶ Undo" onPress={undo} disabled={!canUndo} />
         <Button label="↷ Redo" onPress={redo} disabled={!canRedo} />
         <Button label="Statuses" onPress={() => setStatusManagerOpen(true)} />
@@ -88,6 +112,7 @@ export function WorkspaceBar() {
         {status}
       </Text>
 
+      <ContextMenu at={fileMenuAt} items={fileMenuItems} onClose={() => setFileMenuAt(null)} />
       <StatusManager visible={statusManagerOpen} onClose={() => setStatusManagerOpen(false)} />
       <ChartsModal visible={chartsOpen} onClose={() => setChartsOpen(false)} />
       <SyncSettings visible={syncOpen} onClose={() => setSyncOpen(false)} />

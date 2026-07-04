@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useStore } from '../store/useStore';
+import { ContextMenu, MouseArea, type MenuEntry } from './ContextMenu';
 
-// Tabs for the open projects. Click an inactive tab to switch to it; click the
-// active tab to rename it inline; ✕ closes a tab. The active tab's title tracks
-// the live project name so edits show immediately.
+// Tabs for the open projects. Click an inactive tab to switch; double-click a tab
+// to rename it inline (this renames the display name AND the .json file on disk);
+// right-click for Rename / Close; ✕ closes. The active tab's title tracks the live
+// project name so edits show immediately.
 
 export function TabBar() {
   const openTabs = useStore((s) => s.openTabs);
@@ -13,11 +15,14 @@ export function TabBar() {
   const activeName = useStore((s) => s.project.name);
   const switchProject = useStore((s) => s.switchProject);
   const closeTab = useStore((s) => s.closeTab);
-  const setProjectName = useStore((s) => s.setProjectName);
+  const renameProjectFile = useStore((s) => s.renameProjectFile);
 
-  const [editing, setEditing] = useState(false);
-  // Drop out of rename mode whenever the active project changes.
-  useEffect(() => setEditing(false), [activeFile]);
+  /** File name of the tab being renamed inline, plus the draft text. */
+  const [renaming, setRenaming] = useState<{ file: string; draft: string } | null>(null);
+  const [menu, setMenu] = useState<{ file: string; x: number; y: number } | null>(null);
+
+  // Drop out of rename mode whenever the active project changes underneath us.
+  useEffect(() => setRenaming(null), [activeFile]);
 
   if (openTabs.length === 0) return null;
 
@@ -26,6 +31,22 @@ export function TabBar() {
       ? activeName || 'Untitled'
       : projects.find((p) => p.fileName === fileName)?.name || fileName;
 
+  const startRename = (file: string) => setRenaming({ file, draft: titleFor(file) });
+  const commitRename = () => {
+    if (renaming && renaming.draft.trim()) {
+      void renameProjectFile(renaming.file, renaming.draft);
+    }
+    setRenaming(null);
+  };
+
+  const menuItems: MenuEntry[] = menu
+    ? [
+        { label: 'Rename', onPress: () => startRename(menu.file) },
+        'divider',
+        { label: 'Close', onPress: () => closeTab(menu.file) },
+      ]
+    : [];
+
   return (
     <View style={styles.bar}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
@@ -33,24 +54,30 @@ export function TabBar() {
           const isActive = fileName === activeFile;
           return (
             <View key={fileName} style={[styles.tab, isActive && styles.tabActive]}>
-              {isActive && editing ? (
+              {renaming?.file === fileName ? (
                 <TextInput
                   style={styles.tabInput}
-                  value={activeName}
-                  onChangeText={setProjectName}
-                  onBlur={() => setEditing(false)}
-                  onSubmitEditing={() => setEditing(false)}
+                  value={renaming.draft}
+                  onChangeText={(draft) => setRenaming({ file: fileName, draft })}
+                  onBlur={commitRename}
+                  onSubmitEditing={commitRename}
                   autoFocus
                   selectTextOnFocus
                 />
               ) : (
-                <Pressable
-                  onPress={() => (isActive ? setEditing(true) : void switchProject(fileName))}
+                <MouseArea
+                  onDoubleClick={() => startRename(fileName)}
+                  onContextMenu={(x, y) => setMenu({ file: fileName, x, y })}
                 >
-                  <Text style={[styles.tabText, isActive && styles.tabTextActive]} numberOfLines={1}>
-                    {titleFor(fileName)}
-                  </Text>
-                </Pressable>
+                  <Pressable onPress={() => (isActive ? undefined : void switchProject(fileName))}>
+                    <Text
+                      style={[styles.tabText, isActive && styles.tabTextActive]}
+                      numberOfLines={1}
+                    >
+                      {titleFor(fileName)}
+                    </Text>
+                  </Pressable>
+                </MouseArea>
               )}
               <Pressable onPress={() => closeTab(fileName)} hitSlop={6} style={styles.close}>
                 <Text style={styles.closeText}>✕</Text>
@@ -59,6 +86,12 @@ export function TabBar() {
           );
         })}
       </ScrollView>
+
+      <ContextMenu
+        at={menu ? { x: menu.x, y: menu.y } : null}
+        items={menuItems}
+        onClose={() => setMenu(null)}
+      />
     </View>
   );
 }

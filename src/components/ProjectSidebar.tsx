@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import {
   flattenForIndex,
@@ -7,9 +7,12 @@ import {
   tagCountsFromEntries,
 } from '../model/searchIndex';
 import { useStore } from '../store/useStore';
+import { ContextMenu, MouseArea, type MenuEntry } from './ContextMenu';
 
 // Left slideout: remembered workspace folders (switch / forget), and a tabbed
 // view for the current folder — Projects (.json files) or Search (text + #tags).
+// Project rows: click to open, double-click or right-click → Rename (renames the
+// file on disk too), right-click → Delete (confirms; removes the .json).
 
 export function ProjectSidebar() {
   const open = useStore((s) => s.sidebarOpen);
@@ -29,9 +32,39 @@ export function ProjectSidebar() {
   const forgetFolder = useStore((s) => s.forgetFolder);
   const switchProject = useStore((s) => s.switchProject);
   const newProjectInFolder = useStore((s) => s.newProjectInFolder);
+  const renameProjectFile = useStore((s) => s.renameProjectFile);
+  const deleteProject = useStore((s) => s.deleteProject);
   const setSidebarTab = useStore((s) => s.setSidebarTab);
   const setTagQuery = useStore((s) => s.setTagQuery);
   const openSearchResult = useStore((s) => s.openSearchResult);
+
+  /** Right-click menu target + inline-rename state for project rows. */
+  const [menu, setMenu] = useState<{ file: string; name: string; x: number; y: number } | null>(
+    null,
+  );
+  const [renaming, setRenaming] = useState<{ file: string; draft: string } | null>(null);
+
+  const commitRename = () => {
+    if (renaming && renaming.draft.trim()) {
+      void renameProjectFile(renaming.file, renaming.draft);
+    }
+    setRenaming(null);
+  };
+
+  const confirmDelete = (file: string, name: string) => {
+    const ok =
+      typeof window === 'undefined' ||
+      window.confirm(`Delete "${name}"?\n\nThis removes ${file} from the folder.`);
+    if (ok) void deleteProject(file);
+  };
+
+  const menuItems: MenuEntry[] = menu
+    ? [
+        { label: 'Rename', onPress: () => setRenaming({ file: menu.file, draft: menu.name }) },
+        'divider',
+        { label: 'Delete…', danger: true, onPress: () => confirmDelete(menu.file, menu.name) },
+      ]
+    : [];
 
   // Cross-file: index entries for other files + the current file live from memory.
   const entries = useMemo(
@@ -105,23 +138,46 @@ export function ProjectSidebar() {
           ) : (
             projects.map((p) => {
               const isActive = p.fileName === activeFile;
+              if (renaming?.file === p.fileName) {
+                return (
+                  <View key={p.fileName} style={[styles.item, styles.itemActive]}>
+                    <TextInput
+                      style={styles.renameInput}
+                      value={renaming.draft}
+                      onChangeText={(draft) => setRenaming({ file: p.fileName, draft })}
+                      onBlur={commitRename}
+                      onSubmitEditing={commitRename}
+                      autoFocus
+                      selectTextOnFocus
+                    />
+                  </View>
+                );
+              }
               return (
-                <Pressable
+                <MouseArea
                   key={p.fileName}
-                  onPress={() => void switchProject(p.fileName)}
-                  style={({ pressed }) => [
-                    styles.item,
-                    isActive && styles.itemActive,
-                    pressed && styles.itemPressed,
-                  ]}
+                  onDoubleClick={() => setRenaming({ file: p.fileName, draft: p.name })}
+                  onContextMenu={(x, y) =>
+                    setMenu({ file: p.fileName, name: p.name, x, y })
+                  }
                 >
-                  <Text
-                    style={[styles.itemText, isActive && styles.itemTextActive]}
-                    numberOfLines={1}
+                  <Pressable
+                    onPress={() => void switchProject(p.fileName)}
+                    style={({ pressed }) => [
+                      styles.item,
+                      styles.itemGrow,
+                      isActive && styles.itemActive,
+                      pressed && styles.itemPressed,
+                    ]}
                   >
-                    {p.name}
-                  </Text>
-                </Pressable>
+                    <Text
+                      style={[styles.itemText, isActive && styles.itemTextActive]}
+                      numberOfLines={1}
+                    >
+                      {p.name}
+                    </Text>
+                  </Pressable>
+                </MouseArea>
               );
             })
           )
@@ -200,6 +256,12 @@ export function ProjectSidebar() {
           </Pressable>
         </View>
       )}
+
+      <ContextMenu
+        at={menu ? { x: menu.x, y: menu.y } : null}
+        items={menuItems}
+        onClose={() => setMenu(null)}
+      />
     </View>
   );
 }
@@ -246,6 +308,14 @@ const styles = StyleSheet.create({
   tabText: { fontSize: 12, color: '#6b7280', textAlign: 'center' },
   tabTextActive: { color: '#3730a3', fontWeight: '600' },
   item: { paddingHorizontal: 12, paddingVertical: 8 },
+  itemGrow: { flexGrow: 1, minWidth: 0 },
+  renameInput: {
+    fontSize: 13,
+    color: '#111827',
+    fontWeight: '600',
+    padding: 0,
+    outlineWidth: 0,
+  } as any,
   itemActive: { backgroundColor: '#e0e7ff' },
   itemPressed: { backgroundColor: '#e5e7eb' },
   itemText: { fontSize: 13, color: '#374151', flexShrink: 1 },

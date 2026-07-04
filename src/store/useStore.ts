@@ -40,10 +40,13 @@ import {
   type FileRef,
 } from '../persistence/file';
 import {
+  availableFileName,
   createProjectFile,
+  deleteProjectFile,
   listProjects,
   pickDirectory,
   readProjectFromRef,
+  renameProjectFileOnDisk,
   uniqueFileName,
   type ProjectRef,
 } from '../persistence/directory';
@@ -211,6 +214,10 @@ export interface AppState {
   refreshProjects: () => Promise<void>;
   switchProject: (fileName: string) => Promise<void>;
   newProjectInFolder: () => Promise<void>;
+  /** Rename a project: display name AND the .json file on disk (kept in step). */
+  renameProjectFile: (fileName: string, newDisplayName: string) => Promise<void>;
+  /** Delete a project file from the workspace folder (caller confirms first). */
+  deleteProject: (fileName: string) => Promise<void>;
   closeTab: (fileName: string) => void;
   restoreWorkspace: () => Promise<void>;
   rebuildFolderIndex: () => Promise<void>;
@@ -1124,6 +1131,103 @@ export const useStore = create<AppState>((set, get) => {
       } catch (e: any) {
         set({ error: e?.message ?? 'Failed to create project.' });
       }
+    },
+
+    renameProjectFile: async (fileName, newDisplayName) => {
+      const name = newDisplayName.trim();
+      if (!name) return;
+      const { workspaceDir, projects } = get();
+      const ref = projects.find((p) => p.fileName === fileName);
+      const isActive = fileName === get().fileName;
+
+      // 1. Display name (the `name` inside the JSON). Active project goes through
+      // setProjectName (undoable, bumps the metadata clock, autosaves); another
+      // file is read, renamed, stamped, and written back directly.
+      if (isActive) {
+        get().setProjectName(name);
+      } else if (ref) {
+        try {
+          const proj = await readProjectFromRef(ref);
+          proj.name = name;
+          proj.updatedAt = nowIso(); // metadata clock so the rename wins in sync
+          await saveProjectToHandle(ref.handle, proj);
+        } catch (e: any) {
+          set({ error: e?.message ?? 'Failed to rename project.' });
+          return;
+        }
+      }
+
+      // 2. The actual file on disk, kept in step with the display name.
+      if (!workspaceDir || !ref) {
+        // Single-file mode (Open File, no folder): try renaming the bound file
+        // in place via handle.move(); harmless no-op where unsupported.
+        const handle: any = get().fileHandle;
+        if (isActive && handle && typeof handle.move === 'function') {
+          const newFileName = availableFileName([], name);
+          try {
+            await handle.move(newFileName);
+            set({
+              fileName: newFileName,
+              openTabs: get().openTabs.map((t) => (t === fileName ? newFileName : t)),
+            });
+          } catch {
+            // Display name still renamed; the file keeps its old name.
+          }
+        }
+        return;
+      }
+      const others = projects.filter((p) => p.fileName !== fileName);
+      const newFileName = availableFileName(others, name);
+      try {
+        const newRef = await renameProjectFileOnDisk(
+          workspaceDir,
+          ref,
+          newFileName,
+          isActive ? get().project : null,
+        );
+        set({
+          projects: get()
+            .projects.map((p) => (p.fileName === fileName ? { ...newRef, name } : p))
+            .sort((a, b) => a.name.localeCompare(b.name)),
+          openTabs: get().openTabs.map((t) => (t === fileName ? newRef.fileName : t)),
+          ...(isActive ? { fileName: newRef.fileName, fileHandle: newRef.handle } : {}),
+          folderIndex: get().folderIndex.map((e) =>
+            e.fileName === fileName ? { ...e, fileName: newRef.fileName, projectName: name } : e,
+          ),
+        });
+        await persistCurrentFolder();
+      } catch (e: any) {
+        set({ error: e?.message ?? 'Failed to rename file.' });
+      }
+    },
+
+    deleteProject: async (fileName) => {
+      const { workspaceDir, projects, openTabs, fileName: active } = get();
+      if (!workspaceDir) return;
+      try {
+        await deleteProjectFile(workspaceDir, fileName);
+      } catch (e: any) {
+        set({ error: e?.message ?? 'Failed to delete project.' });
+        return;
+      }
+      const index = openTabs.indexOf(fileName);
+      const remainingTabs = openTabs.filter((t) => t !== fileName);
+      set({
+        projects: projects.filter((p) => p.fileName !== fileName),
+        openTabs: remainingTabs,
+        folderIndex: get().folderIndex.filter((e) => e.fileName !== fileName),
+      });
+      if (fileName === active) {
+        // Unbind BEFORE switching so nothing tries to write the deleted file.
+        set({ fileHandle: null, fileName: null, dirty: false });
+        if (remainingTabs.length) {
+          const next = remainingTabs[Math.min(Math.max(index, 0), remainingTabs.length - 1)];
+          await get().switchProject(next);
+        } else {
+          get().newProject();
+        }
+      }
+      await persistCurrentFolder();
     },
 
     closeTab: (fileName) => {

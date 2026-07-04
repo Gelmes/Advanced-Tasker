@@ -128,7 +128,10 @@ and also reconciles the metadata on `ProjectFile`, then repairs references:
   kept on the merged project so late-joining devices also learn about the deletion.
 - **Statuses** — `mergeStatuses`: **union by id**, last-write-wins per status by
   `StatusDef.updatedAt`. An *added* status is never lost (the real data-loss risk).
-  Order = local's, with remote-only statuses appended.
+  Deletions propagate via **`ProjectFile.statusTombstones`** (id → deletedAt,
+  recorded by `removeStatus`): a tombstone kills the status on every peer unless it
+  was edited strictly after the deletion (resurrects, dropping the tombstone); two
+  tombstones keep the later time. Order = local's, with remote-only appended.
 - **name / pointScale / activeTimerNodeId** — whole-metadata LWW by
   `ProjectFile.updatedAt`, with a deterministic tiebreak so both peers agree.
 - **Referential integrity (#4)** — after merging, any node whose `status` didn't
@@ -152,13 +155,13 @@ The store stamps the clocks: `setProjectName` / `toggleTimer` bump
   tree position (`parentId`/`orderKey`) are still whole-node LWW, so concurrent edits
   to two *different* of those on the same node keep only the newer node's version of
   both. (`content` would need a text CRDT; `time` is the timer item below.)
-- **Status edge cases still open** — (1) deleting a *status definition*
-  (`removeStatus`) demotes tasks by writing `status = null` directly, bypassing the
-  status path, so it bumps neither `statusUpdatedAt` nor `updatedAt` — that demotion
-  won't sync yet; route it through the same stamp when wiring the server. (2) A node
+- **Status edge cases** — (1) *resolved:* deleting a status definition now syncs —
+  the tombstone travels, and each peer's referential-integrity pass demotes affected
+  tasks itself (the local bulk demotion deliberately writes no per-node stamps, so
+  it can't clobber concurrent node edits on other devices). (2) Still open: a node
   demoted to a note keeps its `statusHistory`, so `completedAt()` still reports it
   done — the analytics treatment of demoted-but-historied nodes is a separate design
-  question, unchanged by this merge fix.
+  question, unchanged by the merge work.
 - **Tombstones never GC** — deleted-node ids accumulate in `ProjectFile.tombstones`
   forever. Fine at personal scale; a horizon-based sweep (drop tombstones older than
   all devices' last sync) is the eventual cleanup.
@@ -166,11 +169,9 @@ The store stamps the clocks: `setProjectName` / `toggleTimer` bump
   server row deleted (`deleted_at`, data retained). Pushes/pulls answer **410**; a
   device holding the project is prompted once to remove its local copy (declining
   keeps it local-only). Restore = clear `deleted_at` in the DB; rows are never GC'd.
-- **Status / point-scale deletion isn't propagated** — *node* deletes now propagate
-  via tombstones, but `mergeStatuses` still unions statuses by id with no tombstones,
-  so a *status definition* removed on one device can reappear from a device that still
-  has it (additive-safe, but incomplete). `name` / `pointScale` merge as whole values
-  (LWW). Proper status deletion needs the same tombstone pattern — deferred.
+- **Point-scale edits merge as a whole value** — node and status deletions both
+  propagate via tombstones now, but `pointScale` (like `name`) is whole-value LWW on
+  the metadata clock, so concurrent edits to different scale entries keep one side.
 - **Order-key rebalancing** — keys only grow; pathological repeated inserts at the
   same spot lengthen keys but never break ordering. No compaction pass yet.
 

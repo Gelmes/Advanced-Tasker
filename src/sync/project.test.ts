@@ -36,16 +36,48 @@ const active = (id: string, updatedAt?: string): StatusDef => ({
 
 describe('mergeStatuses', () => {
   it('unions statuses added on either side (no additive loss)', () => {
-    const local = [active('todo'), active('x')];
-    const remote = [active('todo'), active('y')];
-    expect(mergeStatuses(local, remote).map((s) => s.id).sort()).toEqual(['todo', 'x', 'y']);
+    const local = { statuses: [active('todo'), active('x')] };
+    const remote = { statuses: [active('todo'), active('y')] };
+    expect(
+      mergeStatuses(local, remote)
+        .statuses.map((s) => s.id)
+        .sort(),
+    ).toEqual(['todo', 'x', 'y']);
   });
 
   it('per-status last-write-wins by updatedAt, symmetric', () => {
-    const older = { ...active('todo', '2026-01-01T00:00:00.000Z'), color: '#000000' };
-    const newer = { ...active('todo', '2026-06-01T00:00:00.000Z'), color: '#ffffff' };
-    expect(mergeStatuses([older], [newer])[0].color).toBe('#ffffff');
-    expect(mergeStatuses([newer], [older])[0].color).toBe('#ffffff');
+    const older = { statuses: [{ ...active('todo', '2026-01-01T00:00:00.000Z'), color: '#000000' }] };
+    const newer = { statuses: [{ ...active('todo', '2026-06-01T00:00:00.000Z'), color: '#ffffff' }] };
+    expect(mergeStatuses(older, newer).statuses[0].color).toBe('#ffffff');
+    expect(mergeStatuses(newer, older).statuses[0].color).toBe('#ffffff');
+  });
+
+  it('a status tombstone kills the status on the side that still has it', () => {
+    const local = {
+      statuses: [active('todo')],
+      statusTombstones: { blocked: '2026-06-01T00:00:00.000Z' },
+    };
+    const remote = { statuses: [active('todo'), active('blocked', '2026-01-01T00:00:00.000Z')] };
+    const out = mergeStatuses(local, remote);
+    expect(out.statuses.map((s) => s.id)).toEqual(['todo']);
+    expect(out.statusTombstones.blocked).toBe('2026-06-01T00:00:00.000Z'); // propagates onward
+    // Symmetric.
+    const out2 = mergeStatuses(remote, local);
+    expect(out2.statuses.map((s) => s.id)).toEqual(['todo']);
+  });
+
+  it('a status edited after the deletion resurrects (tombstone dropped)', () => {
+    const local = { statuses: [], statusTombstones: { blocked: '2026-01-01T00:00:00.000Z' } };
+    const remote = { statuses: [active('blocked', '2026-06-01T00:00:00.000Z')] };
+    const out = mergeStatuses(local, remote);
+    expect(out.statuses.map((s) => s.id)).toEqual(['blocked']);
+    expect(out.statusTombstones.blocked).toBeUndefined();
+  });
+
+  it('two tombstones keep the later deletion time', () => {
+    const a = { statuses: [], statusTombstones: { x: '2026-01-01T00:00:00.000Z' } };
+    const b = { statuses: [], statusTombstones: { x: '2026-06-01T00:00:00.000Z' } };
+    expect(mergeStatuses(a, b).statusTombstones.x).toBe('2026-06-01T00:00:00.000Z');
   });
 });
 
@@ -119,6 +151,23 @@ describe('mergeProjects', () => {
     const merged = mergeProjects(local, remote);
     expect(merged.root.children.find((c) => c.id === 'a')?.content).toBe('revived');
     expect(merged.tombstones?.a).toBeUndefined(); // resurrected → tombstone dropped
+  });
+
+  it('(statuses) a deleted status stays deleted and its tasks are demoted everywhere', () => {
+    const base = createEmptyProject('S');
+    // Local deleted the "doing" status (tombstoned); remote still has it AND a task using it.
+    const local = version(base, {
+      statuses: base.statuses.filter((s) => s.id !== 'doing').map((s) => ({ ...s })),
+      statusTombstones: { doing: '2026-06-01T00:00:00.000Z' },
+    });
+    const remote = version(base, {}, [
+      node('n', { status: 'doing', updatedAt: '2026-01-01T00:00:00.000Z' }),
+    ]);
+    const merged = mergeProjects(local, remote);
+    expect(merged.statuses.find((s) => s.id === 'doing')).toBeUndefined();
+    expect(merged.statusTombstones?.doing).toBe('2026-06-01T00:00:00.000Z');
+    // The task survives but is demoted to a note (integrity pass).
+    expect(merged.root.children.find((c) => c.id === 'n')!.status).toBeNull();
   });
 
   it('applyLocalView keeps this device’s collapse state when adopting a merge', () => {

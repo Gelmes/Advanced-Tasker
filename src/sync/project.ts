@@ -9,21 +9,45 @@ import type { ProjectFile, StatusDef, TaskNode } from '../model/types';
 import { flatten, rebuild, type SyncNode } from './flatten';
 import { merge } from './merge';
 
+/** The status-definition slice of a project: the live set + deletion records. */
+export interface StatusSet {
+  statuses: StatusDef[];
+  statusTombstones?: Record<string, string>;
+}
+
 /**
- * Merge two status sets: union by id, last-write-wins per status by `updatedAt`.
- * This never drops an *added* status (the real data-loss risk). Deletion is not yet
- * propagated — a status removed on one device can reappear from a device that still
- * has it (SYNC.md "status deletion"); that needs status tombstones, deferred.
- * Order: the local set's order, with remote-only statuses appended.
+ * Merge two status sets: union by id, last-write-wins per status by `updatedAt`,
+ * so an *added* status is never lost. Deletions propagate via tombstones
+ * (id → deletedAt): a tombstone kills the status unless it was edited strictly
+ * after the deletion (`updatedAt > deletedAt` resurrects, dropping the tombstone);
+ * two tombstones keep the later time. A legacy status without `updatedAt` counts
+ * as oldest, so a delete always beats it. Order: local's, remote-only appended.
  */
-export function mergeStatuses(local: StatusDef[], remote: StatusDef[]): StatusDef[] {
+export function mergeStatuses(
+  local: StatusSet,
+  remote: StatusSet,
+): { statuses: StatusDef[]; statusTombstones: Record<string, string> } {
   const byId = new Map<string, StatusDef>();
-  for (const s of local) byId.set(s.id, s);
-  for (const s of remote) {
+  for (const s of local.statuses) byId.set(s.id, s);
+  for (const s of remote.statuses) {
     const cur = byId.get(s.id);
     byId.set(s.id, cur ? pickNewerStatus(cur, s) : s);
   }
-  return [...byId.values()];
+
+  // Later tombstone per id across both sides.
+  const merged: Record<string, string> = { ...(local.statusTombstones ?? {}) };
+  for (const [id, at] of Object.entries(remote.statusTombstones ?? {})) {
+    merged[id] = merged[id] && merged[id] >= at ? merged[id] : at;
+  }
+
+  const statusTombstones: Record<string, string> = {};
+  for (const [id, at] of Object.entries(merged)) {
+    const s = byId.get(id);
+    if (s && (s.updatedAt ?? '') > at) continue; // edited after the delete — resurrect
+    byId.delete(id);
+    statusTombstones[id] = at;
+  }
+  return { statuses: [...byId.values()], statusTombstones };
 }
 
 /** The status edited more recently; legacy (no `updatedAt`) counts as oldest. */
@@ -49,7 +73,7 @@ export function mergeProjects(local: ProjectFile, remote: ProjectFile): ProjectF
   const tombstones: Record<string, string> = {};
   for (const n of mergedNodes) if (n.deletedAt) tombstones[n.id] = n.deletedAt;
 
-  const statuses = mergeStatuses(local.statuses, remote.statuses);
+  const { statuses, statusTombstones } = mergeStatuses(local, remote);
   const meta = pickMeta(local, remote);
 
   // --- referential integrity (#4) -------------------------------------------
@@ -80,6 +104,7 @@ export function mergeProjects(local: ProjectFile, remote: ProjectFile): ProjectF
     activeTimerNodeId,
     updatedAt: newer(local.updatedAt, remote.updatedAt),
     tombstones,
+    statusTombstones,
     root: rebuilt,
   };
 }
@@ -157,6 +182,9 @@ export function fingerprint(p: ProjectFile): string {
   const tombs = Object.entries(p.tombstones ?? {})
     .map(([id, at]) => `${id}|${at}`)
     .sort();
+  const stombs = Object.entries(p.statusTombstones ?? {})
+    .map(([id, at]) => `${id}|${at}`)
+    .sort();
   return JSON.stringify([
     p.updatedAt ?? '',
     p.name,
@@ -164,6 +192,7 @@ export function fingerprint(p: ProjectFile): string {
     p.pointScale,
     statuses,
     tombs,
+    stombs,
     nodes,
   ]);
 }

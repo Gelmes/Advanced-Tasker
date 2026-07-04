@@ -952,7 +952,12 @@ export const useStore = create<AppState>((set, get) => {
     removeStatus: (id) =>
       applyProject((project) => {
         project.statuses = project.statuses.filter((s) => s.id !== id);
-        // Demote any tasks that referenced the removed status back to notes.
+        // Record the deletion so it propagates through sync instead of the status
+        // reappearing from a device that still has it (SYNC.md "status deletion").
+        project.statusTombstones = { ...(project.statusTombstones ?? {}), [id]: nowIso() };
+        // Demote any tasks that referenced the removed status back to notes. No
+        // per-node stamps here — every peer's merge demotes via the integrity pass,
+        // and stamping would let this bulk demotion clobber concurrent node edits.
         walk(project.root.children, (n) => {
           if (n.status === id) n.status = null;
         });

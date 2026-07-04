@@ -91,6 +91,10 @@ export function parseProject(text: string): ProjectFile {
       typeof raw.activeTimerNodeId === 'string' ? raw.activeTimerNodeId : null,
     tombstones:
       raw.tombstones && typeof raw.tombstones === 'object' ? raw.tombstones : {},
+    statusTombstones:
+      raw.statusTombstones && typeof raw.statusTombstones === 'object'
+        ? raw.statusTombstones
+        : {},
     root: { children },
   };
 }

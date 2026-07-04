@@ -102,6 +102,12 @@ export interface ProjectFile {
    */
   tombstones?: Record<string, string>;
   /**
+   * Deleted status-definition ids → deletion time (ISO). Same rationale as node
+   * `tombstones`: without it, a removed status reappears from a device that still
+   * has it. A status edited after the deletion resurrects.
+   */
+  statusTombstones?: Record<string, string>;
+  /**
    * ISO time of the last change to project *metadata* (name, pointScale, active
    * timer) — the clock for merging those fields (SYNC.md). Node edits and status
    * edits carry their own clocks; this covers the rest.

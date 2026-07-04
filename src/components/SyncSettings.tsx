@@ -64,7 +64,7 @@ export function SyncSettings({ visible, onClose }: Props) {
     const ok =
       typeof window === 'undefined' ||
       window.confirm(
-        `Delete "${p.name}" from the sync server?\n\nLocal files on your devices are untouched — but a device that still has it will re-upload it on its next sync.`,
+        `Delete "${p.name}" from the sync server?\n\nLocal files are untouched. Devices that still have it will be told it was deleted and offered a local cleanup on their next sync.`,
       );
     if (!ok) return;
     if (await deleteProjectFromServer(p.id)) {

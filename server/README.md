@@ -13,10 +13,14 @@ All routes except `/health` require `Authorization: Bearer $SYNC_TOKEN`.
 | ------ | ------------------- | --------------- | ------------------------------------------- |
 | GET    | `/health`           | —               | `{ ok: true }`                              |
 | GET    | `/projects`         | —               | `[{ id, name }]` of all stored projects     |
-| GET    | `/sync/:id`         | —               | the stored merged `ProjectFile` (or 404)    |
+| GET    | `/sync/:id`         | —               | the stored merged `ProjectFile` (404 unknown, **410 deleted**) |
 | GET    | `/sync/:id/version` | —               | `{ version }` — cheap change-poll token     |
-| POST   | `/sync/:id`         | a `ProjectFile` | that project **merged** with the server's   |
-| DELETE | `/sync/:id`         | —               | `{ ok }` — removes the row (404 if absent). A device that still has the project re-uploads it on its next push. |
+| POST   | `/sync/:id`         | a `ProjectFile` | that project **merged** with the server's (**410 if deleted** — push refused) |
+| DELETE | `/sync/:id`         | —               | `{ ok: true }` — **tombstones** the row (data kept, `deleted_at` set). Pushes/pulls answer 410 from then on, so other devices are told instead of re-uploading. |
+
+A tombstoned project's data stays in the row until you clean it up manually
+(`delete from projects where deleted_at is not null` in the DB console), so an
+accidental "delete everywhere" is recoverable by clearing `deleted_at`.
 
 `:id` is the project's `ProjectFile.id`. On POST the server does, atomically:
 load stored → `mergeProjects(stored, client)` → save → return merged. The client then

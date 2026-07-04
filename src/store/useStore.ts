@@ -406,6 +406,29 @@ export const useStore = create<AppState>((set, get) => {
     if (get().dirty && get().fileHandle) await get().saveProject();
   };
 
+  // --- Server-deleted projects ("delete everywhere" tombstones) ---------------
+  // Project ids the server reported deleted (410) this session. Each is prompted
+  // about once; afterwards sync for that project stays quiet instead of nagging.
+  const serverDeleted = new Set<string>();
+
+  /** React to a 410 from the server: offer local cleanup once, then go quiet. */
+  const handleServerDeleted = async (projectId: string) => {
+    const alreadyAsked = serverDeleted.has(projectId);
+    serverDeleted.add(projectId);
+    const { fileName, project } = get();
+    if (alreadyAsked || project.id !== projectId || !fileName) {
+      set({ syncStatus: 'This project was deleted on the sync server (local-only now).' });
+      return;
+    }
+    const remove =
+      typeof window !== 'undefined' &&
+      window.confirm(
+        `"${project.name}" was deleted from the sync server on another device.\n\nRemove it from this device too? (Cancel keeps it as a local-only copy.)`,
+      );
+    if (remove) await get().deleteProject(fileName);
+    else set({ syncStatus: 'Deleted on server — this copy is now local-only.' });
+  };
+
   return {
     project: createEmptyProject('Untitled'),
     selectedId: null,
@@ -471,6 +494,10 @@ export const useStore = create<AppState>((set, get) => {
     syncNow: async () => {
       const { syncUrl, syncToken, project: pushed, syncing } = get();
       if (syncing) return; // don't overlap a manual click with an auto-sync
+      if (serverDeleted.has(pushed.id)) {
+        set({ syncStatus: 'This project was deleted on the sync server (local-only now).' });
+        return;
+      }
       const base = syncUrl.trim().replace(/\/+$/, '');
       if (!base || !syncToken) {
         set({ syncStatus: 'Set a server URL and token first.' });
@@ -485,6 +512,12 @@ export const useStore = create<AppState>((set, get) => {
           headers: { 'content-type': 'application/json', authorization: `Bearer ${syncToken}` },
           body: JSON.stringify(pushed),
         });
+        if (res.status === 410) {
+          // "Delete everywhere" on another device tombstoned this project.
+          set({ syncing: false });
+          await handleServerDeleted(pushed.id);
+          return;
+        }
         if (!res.ok) {
           const msg =
             res.status === 401 ? 'Unauthorized — check the token.' : `Sync failed (HTTP ${res.status}).`;
@@ -561,6 +594,10 @@ export const useStore = create<AppState>((set, get) => {
         const res = await fetch(`${base}/sync/${encodeURIComponent(id)}`, {
           headers: { authorization: `Bearer ${syncToken}` },
         });
+        if (res.status === 410) {
+          set({ syncing: false, syncStatus: 'That project was deleted on the server.' });
+          return;
+        }
         if (!res.ok) {
           set({ syncing: false, syncStatus: `Pull failed (HTTP ${res.status}).` });
           return;

@@ -171,9 +171,9 @@ resets history.
   `.json` files — a row opens on click, renames on double-click or right-click → Rename
   (same file-rename semantics as tabs), and deletes via right-click: **Remove from this
   device…** (deletes the file; the sync server's copy is kept) or **Delete everywhere…**
-  (also removes it from the sync server; a device that still holds the project will
-  re-upload it on its next sync, so delete there too). Without sync configured there is
-  a single Delete…; right-clicking the panel background offers **New project**; new
+  (also tombstones it on the sync server — other devices are told it was deleted on
+  their next sync and offered a local cleanup, so the delete sticks). Without sync
+  configured there is a single Delete…; right-clicking the panel background offers **New project**; new
   projects are created as `Untitled.json` (uniquified), so the file on disk is
   recognizable; Search filters the current project by text or `#tag`
   (with clickable tag

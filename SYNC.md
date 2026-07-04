@@ -162,6 +162,10 @@ The store stamps the clocks: `setProjectName` / `toggleTimer` bump
 - **Tombstones never GC** — deleted-node ids accumulate in `ProjectFile.tombstones`
   forever. Fine at personal scale; a horizon-based sweep (drop tombstones older than
   all devices' last sync) is the eventual cleanup.
+- **Whole-project deletes are server tombstones** — "Delete everywhere" marks the
+  server row deleted (`deleted_at`, data retained). Pushes/pulls answer **410**; a
+  device holding the project is prompted once to remove its local copy (declining
+  keeps it local-only). Restore = clear `deleted_at` in the DB; rows are never GC'd.
 - **Status / point-scale deletion isn't propagated** — *node* deletes now propagate
   via tombstones, but `mergeStatuses` still unions statuses by id with no tombstones,
   so a *status definition* removed on one device can reappear from a device that still

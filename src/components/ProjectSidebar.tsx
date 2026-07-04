@@ -68,7 +68,7 @@ export function ProjectSidebar() {
     const ok =
       typeof window === 'undefined' ||
       window.confirm(
-        `Delete "${name}" everywhere?\n\nThis deletes ${file} from the folder AND removes the project from the sync server.`,
+        `Delete "${name}" everywhere?\n\nThis deletes ${file} from the folder and marks the project deleted on the sync server. Other devices are offered a local cleanup on their next sync.`,
       );
     if (ok) void deleteProjectEverywhere(file);
   };

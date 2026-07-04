@@ -7,7 +7,7 @@
 import express, { type NextFunction, type Request, type Response } from 'express';
 import {
   deleteProjectRow,
-  getProject,
+  getRow,
   getVersion,
   initSchema,
   listProjects,
@@ -68,24 +68,28 @@ app.get('/sync/:id/version', async (req: Request, res: Response) => {
 
 app.get('/sync/:id', async (req: Request, res: Response) => {
   try {
-    const project = await getProject(req.params.id);
-    if (!project) {
+    const row = await getRow(req.params.id);
+    if (!row) {
       res.status(404).json({ error: 'not found' });
       return;
     }
-    res.json(project);
+    if (row.deletedAt) {
+      res.status(410).json({ error: 'deleted', deletedAt: row.deletedAt });
+      return;
+    }
+    res.json(row.project);
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
 });
 
-// Remove a project from the server (the app's "Delete everywhere"). Note: a device
-// that still has the project will re-upload it on its next push — deleting there
-// too (or first) is what makes it stay gone.
+// Tombstone a project (the app's "Delete everywhere"). The row and its data are
+// kept; pushes/pulls answer 410 from now on, so a device that still holds the
+// project is told it was deleted (and offers to clean up) instead of re-uploading.
 app.delete('/sync/:id', async (req: Request, res: Response) => {
   try {
-    const existed = await deleteProjectRow(req.params.id);
-    res.status(existed ? 200 : 404).json({ ok: existed });
+    await deleteProjectRow(req.params.id);
+    res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
@@ -102,7 +106,12 @@ app.post('/sync/:id', async (req: Request, res: Response) => {
       res.status(400).json({ error: 'project id mismatch' });
       return;
     }
-    res.json(await syncProject(req.params.id, client));
+    const outcome = await syncProject(req.params.id, client);
+    if (outcome.deleted) {
+      res.status(410).json({ error: 'deleted', deletedAt: outcome.deletedAt });
+      return;
+    }
+    res.json(outcome.project);
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }

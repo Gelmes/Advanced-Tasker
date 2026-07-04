@@ -83,15 +83,17 @@ export function WorkspaceBar() {
     { label: 'Save as…', onPress: () => void saveProjectAs() },
   ];
 
+  // An unbound project exists only in memory — say so loudly (a quiet "No file"
+  // read like a fact, not a warning that closing the app loses the project).
   const status = saving
     ? 'Saving…'
     : error
       ? error
-      : dirty
-        ? '• Unsaved'
-        : fileName
-          ? 'Saved'
-          : 'No file';
+      : !fileName
+        ? 'In memory only — File ▾ › Save as… to keep'
+        : dirty
+          ? '• Unsaved'
+          : 'Saved';
 
   return (
     <View style={styles.bar}>

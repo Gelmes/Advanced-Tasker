@@ -64,15 +64,6 @@ export async function createProjectFile(
   return { fileName, name: project.name, handle };
 }
 
-/** A filename not already present in `existing` (project-1.json, project-2.json, …). */
-export function uniqueFileName(existing: ProjectRef[], base = 'project'): string {
-  const taken = new Set(existing.map((r) => r.fileName.toLowerCase()));
-  for (let i = 1; ; i++) {
-    const candidate = `${base}-${i}.json`;
-    if (!taken.has(candidate)) return candidate;
-  }
-}
-
 /** A display name reduced to a safe cross-platform file base (no extension). */
 export function sanitizeFileBase(name: string): string {
   const base = name

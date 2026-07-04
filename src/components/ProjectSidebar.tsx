@@ -34,6 +34,8 @@ export function ProjectSidebar() {
   const newProjectInFolder = useStore((s) => s.newProjectInFolder);
   const renameProjectFile = useStore((s) => s.renameProjectFile);
   const deleteProject = useStore((s) => s.deleteProject);
+  const deleteProjectEverywhere = useStore((s) => s.deleteProjectEverywhere);
+  const syncConfigured = useStore((s) => !!s.syncUrl && !!s.syncToken);
   const setSidebarTab = useStore((s) => s.setSidebarTab);
   const setTagQuery = useStore((s) => s.setTagQuery);
   const openSearchResult = useStore((s) => s.openSearchResult);
@@ -51,18 +53,42 @@ export function ProjectSidebar() {
     setRenaming(null);
   };
 
-  const confirmDelete = (file: string, name: string) => {
+  const confirmDeleteLocal = (file: string, name: string) => {
     const ok =
       typeof window === 'undefined' ||
-      window.confirm(`Delete "${name}"?\n\nThis removes ${file} from the folder.`);
+      window.confirm(
+        `Remove "${name}" from this device?\n\nThis deletes ${file} from the folder. The sync server's copy is kept.`,
+      );
     if (ok) void deleteProject(file);
+  };
+
+  const confirmDeleteEverywhere = (file: string, name: string) => {
+    const ok =
+      typeof window === 'undefined' ||
+      window.confirm(
+        `Delete "${name}" everywhere?\n\nThis deletes ${file} from the folder AND removes the project from the sync server.`,
+      );
+    if (ok) void deleteProjectEverywhere(file);
   };
 
   const menuItems: MenuEntry[] = menu
     ? [
         { label: 'Rename', onPress: () => setRenaming({ file: menu.file, draft: menu.name }) },
         'divider',
-        { label: 'Delete…', danger: true, onPress: () => confirmDelete(menu.file, menu.name) },
+        {
+          label: syncConfigured ? 'Remove from this device…' : 'Delete…',
+          danger: true,
+          onPress: () => confirmDeleteLocal(menu.file, menu.name),
+        },
+        ...(syncConfigured
+          ? [
+              {
+                label: 'Delete everywhere…',
+                danger: true,
+                onPress: () => confirmDeleteEverywhere(menu.file, menu.name),
+              },
+            ]
+          : []),
       ]
     : [];
 

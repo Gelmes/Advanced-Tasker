@@ -23,6 +23,7 @@ export function SyncSettings({ visible, onClose }: Props) {
   const syncNow = useStore((s) => s.syncNow);
   const listServerProjects = useStore((s) => s.listServerProjects);
   const pullProject = useStore((s) => s.pullProject);
+  const deleteProjectFromServer = useStore((s) => s.deleteProjectFromServer);
 
   const [url, setUrl] = useState(syncUrl);
   const [token, setToken] = useState(syncToken);
@@ -57,6 +58,20 @@ export function SyncSettings({ visible, onClose }: Props) {
   const pull = (id: string) => {
     void pullProject(id);
     onClose();
+  };
+
+  const removeFromServer = async (p: { id: string; name: string }) => {
+    const ok =
+      typeof window === 'undefined' ||
+      window.confirm(
+        `Delete "${p.name}" from the sync server?\n\nLocal files on your devices are untouched — but a device that still has it will re-upload it on its next sync.`,
+      );
+    if (!ok) return;
+    if (await deleteProjectFromServer(p.id)) {
+      setList((cur) => (cur ? cur.filter((x) => x.id !== p.id) : cur));
+    } else {
+      setListErr('Server delete failed.');
+    }
   };
 
   return (
@@ -130,12 +145,17 @@ export function SyncSettings({ visible, onClose }: Props) {
             list.length ? (
               <ScrollView style={styles.list}>
                 {list.map((p) => (
-                  <Pressable key={p.id} style={styles.listRow} onPress={() => pull(p.id)}>
+                  <View key={p.id} style={styles.listRow}>
                     <Text style={styles.listName} numberOfLines={1}>
                       {p.name}
                     </Text>
-                    <Text style={styles.listPull}>Pull →</Text>
-                  </Pressable>
+                    <Pressable onPress={() => pull(p.id)} hitSlop={6}>
+                      <Text style={styles.listPull}>Pull →</Text>
+                    </Pressable>
+                    <Pressable onPress={() => void removeFromServer(p)} hitSlop={6}>
+                      <Text style={styles.listDelete}>✕</Text>
+                    </Pressable>
+                  </View>
                 ))}
               </ScrollView>
             ) : (
@@ -210,6 +230,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9fafb',
     marginBottom: 6,
   },
-  listName: { fontSize: 13, color: '#374151', flexShrink: 1 },
+  listName: { fontSize: 13, color: '#374151', flexShrink: 1, flexGrow: 1 },
   listPull: { fontSize: 12, color: '#4f46e5', marginLeft: 8 },
+  listDelete: { fontSize: 12, color: '#b91c1c', marginLeft: 10, paddingHorizontal: 2 },
 });

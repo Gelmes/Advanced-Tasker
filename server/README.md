@@ -9,11 +9,14 @@ sync later if needed.
 
 All routes except `/health` require `Authorization: Bearer $SYNC_TOKEN`.
 
-| Method | Route         | Body                | Returns                                  |
-| ------ | ------------- | ------------------- | ---------------------------------------- |
-| GET    | `/health`     | —                   | `{ ok: true }`                           |
-| GET    | `/sync/:id`   | —                   | the stored merged `ProjectFile` (or 404) |
-| POST   | `/sync/:id`   | a `ProjectFile`     | that project **merged** with the server's |
+| Method | Route               | Body            | Returns                                     |
+| ------ | ------------------- | --------------- | ------------------------------------------- |
+| GET    | `/health`           | —               | `{ ok: true }`                              |
+| GET    | `/projects`         | —               | `[{ id, name }]` of all stored projects     |
+| GET    | `/sync/:id`         | —               | the stored merged `ProjectFile` (or 404)    |
+| GET    | `/sync/:id/version` | —               | `{ version }` — cheap change-poll token     |
+| POST   | `/sync/:id`         | a `ProjectFile` | that project **merged** with the server's   |
+| DELETE | `/sync/:id`         | —               | `{ ok }` — removes the row (404 if absent). A device that still has the project re-uploads it on its next push. |
 
 `:id` is the project's `ProjectFile.id`. On POST the server does, atomically:
 load stored → `mergeProjects(stored, client)` → save → return merged. The client then

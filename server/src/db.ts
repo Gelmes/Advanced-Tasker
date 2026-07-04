@@ -39,6 +39,12 @@ export async function getVersion(id: string): Promise<string | null> {
   return rows.length ? new Date(rows[0].updated_at).toISOString() : null;
 }
 
+/** Remove a project row entirely. True if it existed. */
+export async function deleteProjectRow(id: string): Promise<boolean> {
+  const { rowCount } = await pool.query('delete from projects where id = $1', [id]);
+  return (rowCount ?? 0) > 0;
+}
+
 /** All projects on the server as `{ id, name }`, for the pull-by-id picker. */
 export async function listProjects(): Promise<Array<{ id: string; name: string }>> {
   const { rows } = await pool.query(

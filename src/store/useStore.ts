@@ -47,7 +47,6 @@ import {
   pickDirectory,
   readProjectFromRef,
   renameProjectFileOnDisk,
-  uniqueFileName,
   type ProjectRef,
 } from '../persistence/directory';
 import {
@@ -218,6 +217,10 @@ export interface AppState {
   renameProjectFile: (fileName: string, newDisplayName: string) => Promise<void>;
   /** Delete a project file from the workspace folder (caller confirms first). */
   deleteProject: (fileName: string) => Promise<void>;
+  /** Delete a project row from the sync server. True on success or already-gone. */
+  deleteProjectFromServer: (projectId: string) => Promise<boolean>;
+  /** Delete a project locally AND from the sync server (caller confirms first). */
+  deleteProjectEverywhere: (fileName: string) => Promise<void>;
   closeTab: (fileName: string) => void;
   restoreWorkspace: () => Promise<void>;
   rebuildFolderIndex: () => Promise<void>;
@@ -564,8 +567,7 @@ export const useStore = create<AppState>((set, get) => {
         }
         const project = (await res.json()) as ProjectFile;
         if (workspaceDir) {
-          const slug = (project.name || 'project').toLowerCase().replace(/[^a-z0-9]+/g, '-');
-          const fileName = uniqueFileName(projects, slug || 'project');
+          const fileName = availableFileName(projects, project.name || 'project');
           const ref = await createProjectFile(workspaceDir, fileName, project);
           set({
             projects: [...get().projects, ref].sort((a, b) => a.name.localeCompare(b.name)),
@@ -1122,7 +1124,9 @@ export const useStore = create<AppState>((set, get) => {
       }
       try {
         await saveIfDirty();
-        const fileName = uniqueFileName(projects);
+        // File name follows the display name (same rule as rename), so the new
+        // file is recognizable on disk: Untitled.json, Untitled-2.json, …
+        const fileName = availableFileName(projects, 'Untitled');
         const project = createEmptyProject('Untitled');
         const ref = await createProjectFile(workspaceDir, fileName, project);
         set({ projects: [...projects, ref].sort((a, b) => a.name.localeCompare(b.name)) });
@@ -1228,6 +1232,46 @@ export const useStore = create<AppState>((set, get) => {
         }
       }
       await persistCurrentFolder();
+    },
+
+    deleteProjectFromServer: async (projectId) => {
+      const { syncUrl, syncToken } = get();
+      const base = syncUrl.trim().replace(/\/+$/, '');
+      if (!base || !syncToken) return false;
+      try {
+        const res = await fetch(`${base}/sync/${encodeURIComponent(projectId)}`, {
+          method: 'DELETE',
+          headers: { authorization: `Bearer ${syncToken}` },
+        });
+        return res.ok || res.status === 404; // already gone counts as deleted
+      } catch {
+        return false;
+      }
+    },
+
+    deleteProjectEverywhere: async (fileName) => {
+      // Resolve the project id BEFORE deleting the file (it's the only place the
+      // id lives for a non-active project).
+      let id: string | null = null;
+      if (fileName === get().fileName) {
+        id = get().project.id;
+      } else {
+        const ref = get().projects.find((p) => p.fileName === fileName);
+        if (ref) {
+          try {
+            id = (await readProjectFromRef(ref)).id;
+          } catch {
+            // unreadable file — still delete locally below; server copy stays
+          }
+        }
+      }
+      await get().deleteProject(fileName);
+      if (!id) {
+        set({ error: 'Deleted locally; could not read the id for the server delete.' });
+        return;
+      }
+      const ok = await get().deleteProjectFromServer(id);
+      if (!ok) set({ error: 'Deleted locally; the server delete failed — retry from Sync.' });
     },
 
     closeTab: (fileName) => {

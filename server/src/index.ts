@@ -5,7 +5,14 @@
 // `owner` column is already there for it.
 
 import express, { type NextFunction, type Request, type Response } from 'express';
-import { getProject, getVersion, initSchema, listProjects, syncProject } from './db';
+import {
+  deleteProjectRow,
+  getProject,
+  getVersion,
+  initSchema,
+  listProjects,
+  syncProject,
+} from './db';
 import type { ProjectFile } from '../../src/model/types';
 
 const app = express();
@@ -67,6 +74,18 @@ app.get('/sync/:id', async (req: Request, res: Response) => {
       return;
     }
     res.json(project);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// Remove a project from the server (the app's "Delete everywhere"). Note: a device
+// that still has the project will re-upload it on its next push — deleting there
+// too (or first) is what makes it stay gone.
+app.delete('/sync/:id', async (req: Request, res: Response) => {
+  try {
+    const existed = await deleteProjectRow(req.params.id);
+    res.status(existed ? 200 : 404).json({ ok: existed });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }

@@ -169,9 +169,13 @@ resets history.
 - **Project sidebar:** a left slideout with (1) every **remembered folder** (📁 — click to
   switch, ✕ to forget) and (2) a **Projects / Search** tab. Projects lists the open folder's
   `.json` files — a row opens on click, renames on double-click or right-click → Rename
-  (same file-rename semantics as tabs), and deletes via right-click → Delete… (confirm
-  dialog; removes the file from the folder — the sync server's copy is untouched);
-  Search filters the current project by text or `#tag` (with clickable tag
+  (same file-rename semantics as tabs), and deletes via right-click: **Remove from this
+  device…** (deletes the file; the sync server's copy is kept) or **Delete everywhere…**
+  (also removes it from the sync server; a device that still holds the project will
+  re-upload it on its next sync, so delete there too). Without sync configured there is
+  a single Delete…; new projects are created as `Untitled.json` (uniquified), so the
+  file on disk is recognizable; Search filters the current project by text or `#tag`
+  (with clickable tag
   chips) and jumps to a result on click (expanding its ancestors **and scrolling it into
   view**). `#hashtags` render in purple in the outline and open the tag search when tapped —
   use them as categories (#important, #bookmarked, …). Search is **cross-file**: a folder

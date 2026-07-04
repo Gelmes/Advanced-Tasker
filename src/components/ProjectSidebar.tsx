@@ -40,10 +40,12 @@ export function ProjectSidebar() {
   const setTagQuery = useStore((s) => s.setTagQuery);
   const openSearchResult = useStore((s) => s.openSearchResult);
 
-  /** Right-click menu target + inline-rename state for project rows. */
-  const [menu, setMenu] = useState<{ file: string; name: string; x: number; y: number } | null>(
-    null,
+  /** Right-click menu state: a project row's menu, or the panel background's. */
+  type MenuState = { x: number; y: number } & (
+    | { kind: 'project'; file: string; name: string }
+    | { kind: 'panel' }
   );
+  const [menu, setMenu] = useState<MenuState | null>(null);
   const [renaming, setRenaming] = useState<{ file: string; draft: string } | null>(null);
 
   const commitRename = () => {
@@ -71,26 +73,28 @@ export function ProjectSidebar() {
     if (ok) void deleteProjectEverywhere(file);
   };
 
-  const menuItems: MenuEntry[] = menu
-    ? [
-        { label: 'Rename', onPress: () => setRenaming({ file: menu.file, draft: menu.name }) },
-        'divider',
-        {
-          label: syncConfigured ? 'Remove from this device…' : 'Delete…',
-          danger: true,
-          onPress: () => confirmDeleteLocal(menu.file, menu.name),
-        },
-        ...(syncConfigured
-          ? [
-              {
-                label: 'Delete everywhere…',
-                danger: true,
-                onPress: () => confirmDeleteEverywhere(menu.file, menu.name),
-              },
-            ]
-          : []),
-      ]
-    : [];
+  const menuItems: MenuEntry[] = !menu
+    ? []
+    : menu.kind === 'panel'
+      ? [{ label: 'New project', onPress: () => void newProjectInFolder() }]
+      : [
+          { label: 'Rename', onPress: () => setRenaming({ file: menu.file, draft: menu.name }) },
+          'divider',
+          {
+            label: syncConfigured ? 'Remove from this device…' : 'Delete…',
+            danger: true,
+            onPress: () => confirmDeleteLocal(menu.file, menu.name),
+          },
+          ...(syncConfigured
+            ? [
+                {
+                  label: 'Delete everywhere…',
+                  danger: true,
+                  onPress: () => confirmDeleteEverywhere(menu.file, menu.name),
+                },
+              ]
+            : []),
+        ];
 
   // Cross-file: index entries for other files + the current file live from memory.
   const entries = useMemo(
@@ -107,6 +111,10 @@ export function ProjectSidebar() {
 
   return (
     <View style={styles.sidebar}>
+      <MouseArea
+        onContextMenu={(x, y) => setMenu({ kind: 'panel', x, y })}
+        style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}
+      >
       <ScrollView style={styles.scroll}>
         {/* Folders */}
         <View style={styles.sectionHeader}>
@@ -184,7 +192,7 @@ export function ProjectSidebar() {
                   key={p.fileName}
                   onDoubleClick={() => setRenaming({ file: p.fileName, draft: p.name })}
                   onContextMenu={(x, y) =>
-                    setMenu({ file: p.fileName, name: p.name, x, y })
+                    setMenu({ kind: 'project', file: p.fileName, name: p.name, x, y })
                   }
                 >
                   <Pressable
@@ -274,6 +282,7 @@ export function ProjectSidebar() {
           </View>
         )}
       </ScrollView>
+      </MouseArea>
 
       {tab === 'projects' && workspaceName && (
         <View style={styles.footer}>

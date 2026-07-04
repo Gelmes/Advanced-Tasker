@@ -49,6 +49,7 @@ export function MouseArea({
       onDoubleClick={onDoubleClick}
       onContextMenu={(e) => {
         e.preventDefault();
+        e.stopPropagation(); // innermost MouseArea wins when areas are nested
         onContextMenu(e.clientX, e.clientY);
       }}
     >

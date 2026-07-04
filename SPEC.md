@@ -173,8 +173,9 @@ resets history.
   device…** (deletes the file; the sync server's copy is kept) or **Delete everywhere…**
   (also removes it from the sync server; a device that still holds the project will
   re-upload it on its next sync, so delete there too). Without sync configured there is
-  a single Delete…; new projects are created as `Untitled.json` (uniquified), so the
-  file on disk is recognizable; Search filters the current project by text or `#tag`
+  a single Delete…; right-clicking the panel background offers **New project**; new
+  projects are created as `Untitled.json` (uniquified), so the file on disk is
+  recognizable; Search filters the current project by text or `#tag`
   (with clickable tag
   chips) and jumps to a result on click (expanding its ancestors **and scrolling it into
   view**). `#hashtags` render in purple in the outline and open the tag search when tapped —

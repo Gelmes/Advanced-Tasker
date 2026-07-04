@@ -113,7 +113,10 @@ export function ProjectSidebar() {
     <View style={styles.sidebar}>
       <MouseArea
         onContextMenu={(x, y) => setMenu({ kind: 'panel', x, y })}
-        style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}
+        // alignItems must beat MouseArea's row default ('center'), which in a
+        // column layout stops cross-axis stretch and shrinks children to content
+        // width — the sidebar's rows would float centered with big side margins.
+        style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', flex: 1, minHeight: 0 }}
       >
       <ScrollView style={styles.scroll}>
         {/* Folders */}

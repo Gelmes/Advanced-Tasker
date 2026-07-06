@@ -7,6 +7,12 @@ tasks + notes with time, story points, and custom statuses). **`SPEC.md` is the
 design source of truth** — read it before changing behaviour, and update it in the
 same change when behaviour changes.
 
+> **`FILE-FORMAT.md` is the external contract for the on-disk `.json` shape** —
+> other agents/tools parse project files from that document alone. Any change to
+> `src/model/types.ts`'s persisted shape or to `parseProject` migrations MUST
+> update `FILE-FORMAT.md` (fields, interpretation notes, legacy table, changelog)
+> in the same commit.
+
 > Expo has changed across versions. This project is **Expo SDK 56 / React 19.2 /
 > RN 0.85**. Consult the versioned docs at https://docs.expo.dev/versions/v56.0.0/
 > before writing Expo-specific code (see `AGENTS.md`).

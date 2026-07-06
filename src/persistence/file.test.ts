@@ -33,6 +33,38 @@ describe('parseProject migration (backward compatibility)', () => {
     expect(parseProject(withId).id).toBe('proj-123');
   });
 
+  it('migrates legacy accumulatedSeconds to one deterministic synthetic interval', () => {
+    const legacy = JSON.stringify({
+      version: 1,
+      name: 'Timer',
+      root: {
+        children: [
+          {
+            id: 'x',
+            content: 'timed',
+            status: null,
+            storyPoints: null,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-06-01T00:00:00.000Z',
+            time: { accumulatedSeconds: 7200, startedAt: null },
+            children: [],
+          },
+        ],
+      },
+    });
+    const p1 = parseProject(legacy);
+    const t = p1.root.children[0].time;
+    expect((t as any).accumulatedSeconds).toBeUndefined();
+    // 2h interval ENDING at createdAt — anchored to a field identical on every
+    // device, so two devices migrating the same task synthesize the SAME interval
+    // (union-safe), placed backwards so it can't overlap future real runs.
+    expect(t.intervals).toEqual([
+      { start: '2025-12-31T22:00:00.000Z', end: '2026-01-01T00:00:00.000Z' },
+    ]);
+    // Deterministic: a second device parsing the same file gets the identical interval.
+    expect(parseProject(legacy).root.children[0].time.intervals).toEqual(t.intervals);
+  });
+
   it('round-trips the example project without dropping fields', () => {
     const text = readFileSync(examplePath, 'utf8');
     const parsed = parseProject(text);

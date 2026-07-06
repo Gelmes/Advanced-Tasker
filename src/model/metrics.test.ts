@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { completion, computeRollup } from './rollups';
 import { bankTime, elapsedSeconds, formatDuration } from './time';
+import type { TimeInterval } from './types';
+
+/** An interval list totalling sec seconds, ending at endIso. */
+function iv(sec: number, endIso = '2026-01-01T00:00:00.000Z'): TimeInterval[] {
+  return [{ start: new Date(Date.parse(endIso) - sec * 1000).toISOString(), end: endIso }];
+}
 import type { TaskNode } from './types';
 
 function node(partial: Partial<TaskNode> & { id: string }): TaskNode {
@@ -8,7 +14,7 @@ function node(partial: Partial<TaskNode> & { id: string }): TaskNode {
     content: partial.id,
     status: null,
     storyPoints: null,
-    time: { accumulatedSeconds: 0, startedAt: null },
+    time: { intervals: [], startedAt: null },
     statusHistory: [],
     collapsed: false,
     createdAt: '',
@@ -22,14 +28,14 @@ const T0 = Date.parse('2026-01-01T00:00:00.000Z');
 
 describe('elapsedSeconds', () => {
   it('returns banked seconds when stopped', () => {
-    const n = node({ id: 'a', time: { accumulatedSeconds: 90, startedAt: null } });
+    const n = node({ id: 'a', time: { intervals: iv(90), startedAt: null } });
     expect(elapsedSeconds(n, T0)).toBe(90);
   });
 
   it('adds the live run when running', () => {
     const n = node({
       id: 'a',
-      time: { accumulatedSeconds: 10, startedAt: new Date(T0).toISOString() },
+      time: { intervals: iv(10), startedAt: new Date(T0).toISOString() },
     });
     expect(elapsedSeconds(n, T0 + 30_000)).toBe(40); // 10 banked + 30s live
   });
@@ -39,10 +45,12 @@ describe('bankTime', () => {
   it('folds the live run into the banked total and stops', () => {
     const n = node({
       id: 'a',
-      time: { accumulatedSeconds: 5, startedAt: new Date(T0).toISOString() },
+      time: { intervals: iv(5), startedAt: new Date(T0).toISOString() },
     });
     bankTime(n, T0 + 20_000);
-    expect(n.time.accumulatedSeconds).toBe(25);
+    expect(elapsedSeconds(n, T0 + 20_000)).toBe(25);
+    // The 5s banked interval touches the live run at T0 — coalesced into one.
+    expect(n.time.intervals).toHaveLength(1);
     expect(n.time.startedAt).toBeNull();
   });
 });
@@ -61,11 +69,11 @@ describe('computeRollup', () => {
     id: 'root',
     status: 'doing',
     storyPoints: 3,
-    time: { accumulatedSeconds: 100, startedAt: null },
+    time: { intervals: iv(100), startedAt: null },
     children: [
-      node({ id: 'c1', status: 'done', storyPoints: 2, time: { accumulatedSeconds: 50, startedAt: null } }),
-      node({ id: 'c2', status: 'todo', time: { accumulatedSeconds: 25, startedAt: null } }),
-      node({ id: 'note', time: { accumulatedSeconds: 5, startedAt: null } }), // a note
+      node({ id: 'c1', status: 'done', storyPoints: 2, time: { intervals: iv(50), startedAt: null } }),
+      node({ id: 'c2', status: 'todo', time: { intervals: iv(25), startedAt: null } }),
+      node({ id: 'note', time: { intervals: iv(5), startedAt: null } }), // a note
     ],
   });
 

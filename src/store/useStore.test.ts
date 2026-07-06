@@ -72,7 +72,7 @@ describe('copy / cut / paste', () => {
     get().pasteAfterSelected();
 
     const pasted = get().project.root.children[1];
-    expect(pasted.time.accumulatedSeconds).toBe(0);
+    expect(pasted.time.intervals).toEqual([]);
     expect(pasted.time.startedAt).toBeNull();
     expect(pasted.statusHistory).toHaveLength(1); // reseeded at paste, not inherited
   });

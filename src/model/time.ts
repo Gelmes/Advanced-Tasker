@@ -1,25 +1,83 @@
-// Timer math (SPEC.md §2). Elapsed time = banked seconds + the live run since
-// `startedAt`. Because `startedAt` is an absolute timestamp, elapsed stays correct
-// across app restarts.
+// Timer math (SPEC.md §2). Tracked time is a list of completed run intervals
+// plus the live run since `startedAt` — elapsed stays correct across restarts,
+// and intervals merge across devices by set union (SYNC.md "time"). All interval
+// lists are kept normalized: sorted by start, overlaps/touches coalesced.
 
-import type { TaskNode } from './types';
+import type { TaskNode, TimeInterval } from './types';
+
+/** Sum of a normalized interval list, in seconds. */
+export function sumIntervals(intervals: TimeInterval[]): number {
+  let total = 0;
+  for (const iv of intervals) {
+    total += Math.max(0, (Date.parse(iv.end) - Date.parse(iv.start)) / 1000);
+  }
+  return total;
+}
+
+/**
+ * Normalize: sort by start and merge overlapping or touching intervals. Pure —
+ * returns a new array. This is what makes union merges idempotent and keeps a
+ * timer left running on two devices from double-counting the same wall-clock.
+ */
+export function coalesceIntervals(intervals: TimeInterval[]): TimeInterval[] {
+  const valid = intervals.filter((iv) => Date.parse(iv.end) > Date.parse(iv.start));
+  const sorted = [...valid].sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0));
+  const out: TimeInterval[] = [];
+  for (const iv of sorted) {
+    const last = out[out.length - 1];
+    if (last && iv.start <= last.end) {
+      if (iv.end > last.end) last.end = iv.end; // extend the open run
+    } else {
+      out.push({ ...iv });
+    }
+  }
+  return out;
+}
+
+/** Union two interval lists (both sides kept, overlaps counted once). */
+export function unionIntervals(a: TimeInterval[], b: TimeInterval[]): TimeInterval[] {
+  return coalesceIntervals([...a, ...b]);
+}
 
 /** Seconds elapsed for a node at the given wall-clock time (ms since epoch). */
 export function elapsedSeconds(node: TaskNode, nowMs: number): number {
-  const { accumulatedSeconds, startedAt } = node.time;
-  if (!startedAt) return accumulatedSeconds;
+  const { intervals, startedAt } = node.time;
+  const banked = sumIntervals(intervals ?? []);
+  if (!startedAt) return banked;
   const since = (nowMs - Date.parse(startedAt)) / 1000;
-  return accumulatedSeconds + Math.max(0, since);
+  return banked + Math.max(0, since);
 }
 
 export function isRunning(node: TaskNode): boolean {
   return node.time.startedAt != null;
 }
 
-/** Move the live run into the banked total and clear the running marker. */
+/** Close the live run into a completed interval and clear the running marker. */
 export function bankTime(node: TaskNode, nowMs: number): void {
-  node.time.accumulatedSeconds = Math.round(elapsedSeconds(node, nowMs));
+  const { startedAt } = node.time;
+  if (startedAt) {
+    const end = new Date(Math.max(nowMs, Date.parse(startedAt))).toISOString();
+    node.time.intervals = coalesceIntervals([
+      ...(node.time.intervals ?? []),
+      { start: startedAt, end },
+    ]);
+  }
   node.time.startedAt = null;
+}
+
+/**
+ * Explicitly overwrite a node's banked effort (the details-panel correction for a
+ * runaway timer). Replaces the interval list with one synthetic interval ending
+ * now, and stamps `effortUpdatedAt` so the correction beats the union in merge.
+ * If the timer is live, its run restarts from now so the total is exact at this
+ * instant and keeps counting.
+ */
+export function setEffort(node: TaskNode, seconds: number, nowMs: number): void {
+  const secs = Math.max(0, Math.round(seconds));
+  const now = new Date(nowMs).toISOString();
+  node.time.intervals = secs > 0 ? [{ start: new Date(nowMs - secs * 1000).toISOString(), end: now }] : [];
+  node.time.effortUpdatedAt = now;
+  if (node.time.startedAt) node.time.startedAt = now;
 }
 
 /**

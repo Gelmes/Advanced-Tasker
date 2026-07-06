@@ -71,7 +71,7 @@ export function ChartsModal({ visible, onClose }: Props) {
         content: project.name,
         status: null,
         storyPoints: null,
-        time: { accumulatedSeconds: 0, startedAt: null },
+        time: { intervals: [], startedAt: null },
         statusHistory: [],
         dueDate: null,
         collapsed: false,

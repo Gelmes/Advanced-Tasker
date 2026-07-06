@@ -57,8 +57,8 @@ function toSyncNode(node: TaskNode, parentId: string | null, orderKey: string): 
     storyPoints: node.storyPoints,
     dueDate: node.dueDate ?? null,
     collapsed: node.collapsed,
-    // Copy time so sync nodes don't alias the live tree.
-    time: { ...node.time },
+    // Deep-copy time (intervals is an array) so sync nodes don't alias the tree.
+    time: copyTime(node.time),
     statusHistory: node.statusHistory.map((e) => ({ ...e })),
     statusUpdatedAt: node.statusUpdatedAt ?? null,
     storyPointsUpdatedAt: node.storyPointsUpdatedAt ?? null,
@@ -139,13 +139,22 @@ export function rebuild(nodes: SyncNode[]): { children: TaskNode[] } {
   return { children: build(null) };
 }
 
+/** Deep copy of a TimeTracking (omits an absent effortUpdatedAt for round-trip). */
+function copyTime(t: TimeTracking): TimeTracking {
+  return {
+    intervals: (t.intervals ?? []).map((iv) => ({ ...iv })),
+    startedAt: t.startedAt,
+    ...(t.effortUpdatedAt ? { effortUpdatedAt: t.effortUpdatedAt } : {}),
+  };
+}
+
 function toTaskNode(n: SyncNode, children: TaskNode[]): TaskNode {
   return {
     id: n.id,
     content: n.content,
     status: n.status,
     storyPoints: n.storyPoints,
-    time: { ...n.time },
+    time: copyTime(n.time),
     statusHistory: n.statusHistory.map((e) => ({ ...e })),
     // Only carry per-field clocks when set, so a node that never had one round-trips
     // to the same shape (mirrors how deletedAt is omitted for live nodes).

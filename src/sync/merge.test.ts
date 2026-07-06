@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { sumIntervals } from '../model/time';
 import type { SyncNode } from './flatten';
 import { merge, unionHistory } from './merge';
 
@@ -13,7 +14,7 @@ function sn(id: string, over: Partial<SyncNode> = {}): SyncNode {
     storyPoints: null,
     dueDate: null,
     collapsed: false,
-    time: { accumulatedSeconds: 0, startedAt: null },
+    time: { intervals: [], startedAt: null },
     statusHistory: [],
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
@@ -132,6 +133,68 @@ describe('merge', () => {
     const m = byId(merge([a], [b]))['x'];
     expect(m.storyPoints).toBe(5); // A's newer points win
     expect(m.dueDate).toBe('2026-02-01'); // B's dueDate NOT clobbered by A's newer node
+  });
+
+  it('(i) timer runs on both devices UNION — the lost-20-minutes case', () => {
+    // Base: task with a 2h run. Laptop adds a 30-min run; desktop (unsynced) adds
+    // a separate 20-min run. The merge must keep all three: 2h50 total.
+    const base = { start: '2026-01-01T09:00:00.000Z', end: '2026-01-01T11:00:00.000Z' };
+    const laptop = sn('x', {
+      time: {
+        intervals: [base, { start: '2026-01-02T09:00:00.000Z', end: '2026-01-02T09:30:00.000Z' }],
+        startedAt: null,
+      },
+      updatedAt: '2026-01-02T09:30:00.000Z',
+    });
+    const desktop = sn('x', {
+      time: {
+        intervals: [base, { start: '2026-01-02T14:00:00.000Z', end: '2026-01-02T14:20:00.000Z' }],
+        startedAt: null,
+      },
+      updatedAt: '2026-01-02T14:20:00.000Z',
+    });
+    const m = byId(merge([laptop], [desktop]))['x'];
+    expect(sumIntervals(m.time.intervals)).toBe(2 * 3600 + 30 * 60 + 20 * 60); // 2h50
+    // Symmetric.
+    const m2 = byId(merge([desktop], [laptop]))['x'];
+    expect(sumIntervals(m2.time.intervals)).toBe(2 * 3600 + 30 * 60 + 20 * 60);
+  });
+
+  it('(i) overlapping runs (timer left running on both) count wall-clock once', () => {
+    // Both machines "ran" 09:00–10:00; desktop kept going to 10:30. Union = 1h30, not 2h30.
+    const a = sn('x', {
+      time: { intervals: [{ start: '2026-01-01T09:00:00.000Z', end: '2026-01-01T10:00:00.000Z' }], startedAt: null },
+    });
+    const b = sn('x', {
+      time: { intervals: [{ start: '2026-01-01T09:00:00.000Z', end: '2026-01-01T10:30:00.000Z' }], startedAt: null },
+    });
+    const m = byId(merge([a], [b]))['x'];
+    expect(sumIntervals(m.time.intervals)).toBe(90 * 60);
+    expect(m.time.intervals).toHaveLength(1); // coalesced
+  });
+
+  it('(i) an explicit effort edit beats the union (per-field effort clock)', () => {
+    // A corrected the runaway timer down to exactly 1h at T2; B still carries the
+    // 3h runaway plus an older run. The correction must win, not union back up.
+    const T2 = '2026-01-02T00:00:00.000Z';
+    const corrected = sn('x', {
+      time: {
+        intervals: [{ start: '2026-01-01T23:00:00.000Z', end: T2 }],
+        startedAt: null,
+        effortUpdatedAt: T2,
+      },
+      updatedAt: T2,
+    });
+    const runaway = sn('x', {
+      time: {
+        intervals: [{ start: '2026-01-01T08:00:00.000Z', end: '2026-01-01T11:00:00.000Z' }],
+        startedAt: null,
+      },
+      updatedAt: '2026-01-01T11:00:00.000Z',
+    });
+    const m = byId(merge([corrected], [runaway]))['x'];
+    expect(sumIntervals(m.time.intervals)).toBe(3600);
+    expect(byId(merge([runaway], [corrected]))['x'].time.effortUpdatedAt).toBe(T2); // symmetric
   });
 
   it('(c) delete newer than edit wins (node stays deleted)', () => {

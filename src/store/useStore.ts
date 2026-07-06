@@ -29,7 +29,7 @@ import {
 import { newId } from '../model/ids';
 import { DEFAULT_STATUS_KIND } from '../model/defaults';
 import { toggleWrap } from '../markdown/inline';
-import { bankTime } from '../model/time';
+import { bankTime, setEffort } from '../model/time';
 import { scrollRowIntoView } from '../rowRegistry';
 import { flattenForIndex, type IndexEntry } from '../model/searchIndex';
 import type { StatusDef } from '../model/types';
@@ -853,7 +853,7 @@ export const useStore = create<AppState>((set, get) => {
       if (clip.mode === 'copy') {
         const ts = nowIso();
         const reset = (n: TaskNode) => {
-          n.time = { accumulatedSeconds: 0, startedAt: null };
+          n.time = { intervals: [], startedAt: null };
           n.statusHistory = n.status ? [{ at: ts, status: n.status }] : [];
           n.statusUpdatedAt = n.status ? ts : null;
           n.createdAt = ts;
@@ -935,10 +935,9 @@ export const useStore = create<AppState>((set, get) => {
       applyProject((project) => {
         const node = findNode(project.root.children, id);
         if (!node) return;
-        node.time.accumulatedSeconds = Math.max(0, Math.round(seconds));
-        // If the timer is live, restart its run from now so the edited total is
-        // exact at this instant and keeps counting forward from the new value.
-        if (node.time.startedAt) node.time.startedAt = new Date(Date.now()).toISOString();
+        // Replaces the interval list with one synthetic run and stamps the
+        // effort clock so the correction beats interval-union in merge.
+        setEffort(node, seconds, Date.now());
         touch(node);
       }, `effort:${id}`),
 

@@ -35,10 +35,40 @@ function migrateStatuses(raw: any): StatusDef[] {
 function migrateNodes(nodes: any[]): TaskNode[] {
   for (const n of nodes) {
     if (!Array.isArray(n.statusHistory)) n.statusHistory = [];
+    migrateTime(n);
     if (Array.isArray(n.children)) migrateNodes(n.children);
     else n.children = [];
   }
   return nodes as TaskNode[];
+}
+
+/**
+ * Migrate legacy `time.accumulatedSeconds` (a single mutable counter) to the
+ * interval model (SYNC.md "time"). The banked total becomes one synthetic
+ * interval ENDING at `createdAt` — anchored to a field identical on every
+ * device, so two devices migrating the same task synthesize the SAME interval
+ * (union-safe, no double count), and placed backwards from creation so it can
+ * never overlap real future runs. Interval positions aren't used by analytics;
+ * only the sum matters.
+ */
+function migrateTime(n: any): void {
+  if (!n.time || typeof n.time !== 'object') {
+    n.time = { intervals: [], startedAt: null };
+    return;
+  }
+  if (!Array.isArray(n.time.intervals)) n.time.intervals = [];
+  const legacy = n.time.accumulatedSeconds;
+  if (typeof legacy === 'number' && legacy > 0 && n.time.intervals.length === 0) {
+    const end = Date.parse(n.createdAt ?? '') || 0;
+    n.time.intervals = [
+      {
+        start: new Date(end - Math.round(legacy) * 1000).toISOString(),
+        end: new Date(end).toISOString(),
+      },
+    ];
+  }
+  delete n.time.accumulatedSeconds;
+  if (typeof n.time.startedAt !== 'string') n.time.startedAt = null;
 }
 
 /** Opaque handle to the on-disk file; kept in the store for auto-save. */

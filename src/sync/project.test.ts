@@ -10,7 +10,7 @@ function node(id: string, over: Partial<TaskNode> = {}): TaskNode {
     content: id,
     status: null,
     storyPoints: null,
-    time: { accumulatedSeconds: 0, startedAt: null },
+    time: { intervals: [], startedAt: null },
     statusHistory: [],
     collapsed: false,
     createdAt: '2026-01-01T00:00:00.000Z',

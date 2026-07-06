@@ -19,7 +19,7 @@ function node(createdAt: string, history: StatusEvent[]): TaskNode {
     content: '',
     status: history.length ? history[history.length - 1].status : null,
     storyPoints: null,
-    time: { accumulatedSeconds: 0, startedAt: null },
+    time: { intervals: [], startedAt: null },
     statusHistory: history,
     collapsed: false,
     createdAt,

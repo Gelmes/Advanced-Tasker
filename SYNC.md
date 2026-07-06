@@ -94,8 +94,21 @@ inserts stay sorted and unique).
 
 `merge(local, remote)` unions by id. For a node on both sides:
 
-- **Shared scalars** (`content`, `parentId`, `orderKey`, `time`) — **last-write-wins
+- **Shared scalars** (`content`, `parentId`, `orderKey`) — **last-write-wins
   by `updatedAt`**, taken **wholesale**. Ties break deterministically by id.
+- **`time`** — completed runs are intervals (`{start, end}`) merged by **set union**
+  with overlaps coalesced: timing the same task on two devices in an unsynced window
+  loses nothing (both runs survive), and a timer left running on both counts the
+  overlapping wall-clock **once** (self-heals double counting). Exception: a strictly
+  newer `time.effortUpdatedAt` — the explicit details-panel correction — **replaces**
+  the other side's list wholesale (unioning would resurrect the runaway time the user
+  just removed; the cost is that the other device's unsynced runs from before the
+  correction are discarded, which is what a correction means). Live `startedAt`: the
+  later one survives when both run. Legacy `accumulatedSeconds` migrates on load to
+  one synthetic interval ending at `createdAt` — anchored to a field identical on
+  every device so the migration is union-safe, and placed backwards from creation so
+  it can't overlap future real runs. The sync fingerprint includes an effort digest
+  (interval sum + clocks), since a union can change time without touching `updatedAt`.
 - **`status` / `storyPoints` / `dueDate`** — each resolved on its **own clock**
   (`statusUpdatedAt` / `storyPointsUpdatedAt` / `dueDateUpdatedAt`), *not* the shared
   `updatedAt`. Every edit bumps `updatedAt`, so per-field clocks stop an edit to one
@@ -144,17 +157,16 @@ The store stamps the clocks: `setProjectName` / `toggleTimer` bump
 
 ## Known limitations
 
-- **`time` / timer** — merged by per-node LWW like any scalar. This is fine for
-  v1, but **concurrent timing on two machines can lose banked time**: if you run
-  the timer on the same node on both devices, whichever `updatedAt` is newer wins
-  and the other machine's banked seconds are dropped. The future refinement is
-  **interval-union** (store runs as intervals and union them). We deliberately did
-  **not** rewrite the live timer model for this step.
-- **Whole-node LWW for the remaining shared scalars** — `status`, `storyPoints`, and
-  `dueDate` merge per-field, and `collapsed` is device-local. `content`, `time`, and
+- **`time` / timer** — *resolved:* interval-union (see "Merge rules"). Concurrent
+  timing on two machines now merges losslessly. Remaining minor points: interval
+  lists grow with every run (adjacent/overlapping runs coalesce, but no further
+  compaction pass yet), and multi-user semantics would need per-user interval sets
+  (two *people* legitimately overlap — union would undercount their combined effort).
+- **Whole-node LWW for the remaining shared scalars** — `status`, `storyPoints`,
+  `dueDate`, and `time` merge per-field; `collapsed` is device-local. `content` and
   tree position (`parentId`/`orderKey`) are still whole-node LWW, so concurrent edits
   to two *different* of those on the same node keep only the newer node's version of
-  both. (`content` would need a text CRDT; `time` is the timer item below.)
+  both. (`content` would need a text CRDT.)
 - **Status edge cases** — (1) *resolved:* deleting a status definition now syncs —
   the tombstone travels, and each peer's referential-integrity pass demotes affected
   tasks itself (the local bulk demotion deliberately writes no per-node stamps, so

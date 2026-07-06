@@ -13,7 +13,7 @@ function n(id: string, children: TaskNode[] = [], over: Partial<TaskNode> = {}):
     content: id,
     status: null,
     storyPoints: null,
-    time: { accumulatedSeconds: 0, startedAt: null },
+    time: { intervals: [], startedAt: null },
     statusHistory: [],
     dueDate: null,
     collapsed: false,
@@ -34,7 +34,7 @@ function sampleProject(): ProjectFile {
     n('b', [], {
       status: 'done',
       statusHistory: [{ at: '2026-01-02T00:00:00.000Z', status: 'done' }],
-      time: { accumulatedSeconds: 120, startedAt: null },
+      time: { intervals: [{ start: '2026-01-01T00:00:00.000Z', end: '2026-01-01T00:02:00.000Z' }], startedAt: null },
     }),
   ];
   return p;

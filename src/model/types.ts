@@ -1,11 +1,28 @@
 // Core data model. See SPEC.md §2. One recursive node type: a node with no
 // `status` is a plain note; a node with a status id is a tracked task.
 
+/** One completed timer run. `start` < `end`, both ISO timestamps. */
+export interface TimeInterval {
+  start: string;
+  end: string;
+}
+
 export interface TimeTracking {
-  /** Banked seconds from previously-stopped runs. */
-  accumulatedSeconds: number;
+  /**
+   * Completed timer runs. Sync merges these by SET UNION (coalescing overlaps),
+   * so timing the same task on two devices in an unsynced window loses nothing —
+   * and a timer left running on both counts the overlapping wall-clock once
+   * (SYNC.md "time"). Elapsed = sum of intervals + the live run.
+   */
+  intervals: TimeInterval[];
   /** ISO timestamp while the timer is running, else null. */
   startedAt: string | null;
+  /**
+   * ISO time of the last explicit effort EDIT (the details-panel correction).
+   * An edit replaces the interval list wholesale; this per-field clock lets the
+   * correction beat the union in merge. Absent = never edited.
+   */
+  effortUpdatedAt?: string | null;
 }
 
 /** A settled status transition (SPEC.md §6). `status` is a status id. */

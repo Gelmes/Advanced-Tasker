@@ -8,7 +8,7 @@ function n(content: string, children: TaskNode[] = []): TaskNode {
     content,
     status: null,
     storyPoints: null,
-    time: { accumulatedSeconds: 0, startedAt: null },
+    time: { intervals: [], startedAt: null },
     statusHistory: [],
     collapsed: false,
     createdAt: '',

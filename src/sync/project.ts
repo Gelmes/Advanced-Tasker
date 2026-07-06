@@ -6,6 +6,7 @@
 // Pure — no React, no I/O. Inputs are not mutated (the tree is rebuilt fresh).
 
 import type { ProjectFile, StatusDef, TaskNode } from '../model/types';
+import { sumIntervals } from '../model/time';
 import { flatten, rebuild, type SyncNode } from './flatten';
 import { merge } from './merge';
 
@@ -137,7 +138,7 @@ function tombstoneNode(id: string, at: string): SyncNode {
     storyPoints: null,
     dueDate: null,
     collapsed: false,
-    time: { accumulatedSeconds: 0, startedAt: null },
+    time: { intervals: [], startedAt: null },
     statusHistory: [],
     createdAt: at,
     updatedAt: at,
@@ -175,7 +176,10 @@ export function fingerprint(p: ProjectFile): string {
   const nodes = flatten(p)
     .map(
       (n) =>
-        `${n.id}|${n.updatedAt}|${n.statusUpdatedAt ?? ''}|${n.deletedAt ?? ''}|${n.orderKey}|${n.parentId ?? ''}`,
+        // The effort digest (interval sum + clocks) matters: an interval UNION
+        // arriving from another device changes no updatedAt, so without it the
+        // client would think the merged project equals its own and skip adopting.
+        `${n.id}|${n.updatedAt}|${n.statusUpdatedAt ?? ''}|${n.deletedAt ?? ''}|${n.orderKey}|${n.parentId ?? ''}|${Math.round(sumIntervals(n.time.intervals ?? []))}|${n.time.effortUpdatedAt ?? ''}|${n.time.startedAt ?? ''}`,
     )
     .sort();
   const statuses = p.statuses.map((s) => `${s.id}|${s.updatedAt ?? ''}`).sort();

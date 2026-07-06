@@ -51,7 +51,7 @@ time from the subtree — never stored**.
         "status": null,               // null = plain note; a status id = task
         "storyPoints": null,          // null until assigned; must be in pointScale
         "time": {
-          "accumulatedSeconds": 0,    // banked time
+          "intervals": [],            // completed runs [{start, end}] (ISO); synced by union
           "startedAt": null           // ISO timestamp while running, else null
         },
         "statusHistory": [],          // settled status transitions [{at, status}]
@@ -65,16 +65,19 @@ time from the subtree — never stored**.
 }
 ```
 
-**Timer semantics:** elapsed = `accumulatedSeconds + (now - startedAt)` while running.
-Storing `startedAt` as a timestamp means elapsed time stays correct across app
-restarts. Starting a timer on a node sets `activeTimerNodeId` and stops any other
-running timer (banking its elapsed into `accumulatedSeconds`).
+**Timer semantics:** tracked time is a list of completed run **intervals**; elapsed =
+sum of intervals `+ (now - startedAt)` while running. Storing `startedAt` as a
+timestamp means elapsed time stays correct across app restarts. Starting a timer on a
+node sets `activeTimerNodeId` and stops any other running timer (closing its run into
+an interval). Intervals sync across devices by set union — see SYNC.md "time"; legacy
+`accumulatedSeconds` files migrate on load.
 
 The effort total is **editable** from the details panel: clicking the "Effort (timer)"
 value lets you type a corrected duration (`1h30m`, `90m`, `45s`, or a bare number read as
-minutes) to fix a runaway timer left running after you walked away. Committing overwrites
-`accumulatedSeconds`; if the timer is live it restarts `startedAt` from now so the edited
-total is exact and keeps counting. Unparseable input reverts.
+minutes) to fix a runaway timer left running after you walked away. Committing replaces
+the interval list with one synthetic run (stamped so the correction beats sync's union);
+if the timer is live it restarts `startedAt` from now so the edited total is exact and
+keeps counting. Unparseable input reverts.
 
 **Status kinds & analytics capture (the basis for burndown/cycle-time):** every status
 has a `kind` of `todo` / `active` / `done` (Blocked folds under `active`). Each node keeps

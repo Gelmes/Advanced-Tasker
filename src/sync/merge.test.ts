@@ -197,6 +197,38 @@ describe('merge', () => {
     expect(byId(merge([runaway], [corrected]))['x'].time.effortUpdatedAt).toBe(T2); // symmetric
   });
 
+  it('(i) a stale startedAt does not resurrect after the run was banked elsewhere', () => {
+    // The device stopped the run (banked [09:00, 10:00], cleared startedAt). The
+    // server's older snapshot still carries startedAt=09:00. The merge must NOT
+    // bring the "running" state back — the run is already covered by an interval.
+    const stopped = sn('x', {
+      time: {
+        intervals: [{ start: '2026-01-01T09:00:00.000Z', end: '2026-01-01T10:00:00.000Z' }],
+        startedAt: null,
+      },
+      updatedAt: '2026-01-01T10:00:00.000Z',
+    });
+    const stale = sn('x', {
+      time: { intervals: [], startedAt: '2026-01-01T09:00:00.000Z' },
+      updatedAt: '2026-01-01T09:00:00.000Z',
+    });
+    expect(byId(merge([stopped], [stale]))['x'].time.startedAt).toBeNull();
+    expect(byId(merge([stale], [stopped]))['x'].time.startedAt).toBeNull(); // symmetric
+  });
+
+  it('(i) a genuinely live run (not covered by any interval) survives the merge', () => {
+    const running = sn('x', {
+      time: { intervals: [], startedAt: '2026-01-02T09:00:00.000Z' },
+    });
+    const idle = sn('x', {
+      time: {
+        intervals: [{ start: '2026-01-01T09:00:00.000Z', end: '2026-01-01T10:00:00.000Z' }],
+        startedAt: null,
+      },
+    });
+    expect(byId(merge([running], [idle]))['x'].time.startedAt).toBe('2026-01-02T09:00:00.000Z');
+  });
+
   it('(c) delete newer than edit wins (node stays deleted)', () => {
     const edit = sn('x', { content: 'edited', updatedAt: '2026-01-01T00:00:00.000Z' });
     const del = sn('x', {

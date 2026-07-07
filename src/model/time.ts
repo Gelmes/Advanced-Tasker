@@ -5,11 +5,12 @@
 
 import type { TaskNode, TimeInterval } from './types';
 
-/** Sum of a normalized interval list, in seconds. */
+/** Sum of a normalized interval list, in seconds. Malformed entries count 0. */
 export function sumIntervals(intervals: TimeInterval[]): number {
   let total = 0;
   for (const iv of intervals) {
-    total += Math.max(0, (Date.parse(iv.end) - Date.parse(iv.start)) / 1000);
+    const d = (Date.parse(iv?.end ?? '') - Date.parse(iv?.start ?? '')) / 1000;
+    if (Number.isFinite(d) && d > 0) total += d; // never let a bad date poison the sum (NaN)
   }
   return total;
 }
@@ -45,7 +46,7 @@ export function elapsedSeconds(node: TaskNode, nowMs: number): number {
   const banked = sumIntervals(intervals ?? []);
   if (!startedAt) return banked;
   const since = (nowMs - Date.parse(startedAt)) / 1000;
-  return banked + Math.max(0, since);
+  return banked + (Number.isFinite(since) ? Math.max(0, since) : 0);
 }
 
 export function isRunning(node: TaskNode): boolean {

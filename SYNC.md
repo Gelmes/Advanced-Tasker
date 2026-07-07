@@ -104,7 +104,9 @@ inserts stay sorted and unique).
   the other side's list wholesale (unioning would resurrect the runaway time the user
   just removed; the cost is that the other device's unsynced runs from before the
   correction are discarded, which is what a correction means). Live `startedAt`: the
-  later one survives when both run. Legacy `accumulatedSeconds` migrates on load to
+  later one survives when both run — but a `startedAt` already **covered by a banked
+  interval is dropped** (it's a stale snapshot of a run that was since stopped;
+  keeping it would show a phantom running timer on every device). Legacy `accumulatedSeconds` migrates on load to
   one synthetic interval ending at `createdAt` — anchored to a field identical on
   every device so the migration is union-safe, and placed backwards from creation so
   it can't overlap future real runs. The sync fingerprint includes an effort digest

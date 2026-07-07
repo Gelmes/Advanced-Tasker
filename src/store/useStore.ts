@@ -35,6 +35,7 @@ import { flattenForIndex, type IndexEntry } from '../model/searchIndex';
 import type { StatusDef } from '../model/types';
 import {
   openProject as openProjectFile,
+  parseProject,
   saveProject as saveProjectToHandle,
   saveProjectAs as saveProjectAsFile,
   type FileRef,
@@ -537,7 +538,9 @@ export const useStore = create<AppState>((set, get) => {
           set({ syncing: false, syncStatus: msg });
           return;
         }
-        const merged = (await res.json()) as ProjectFile;
+        // Normalize through the on-load migration — never adopt a shape the app
+        // can't render (e.g. a legacy-format project relayed by the server).
+        const merged = parseProject(await res.text());
         const current = get().project;
         // If the user edited locally while the request was in flight, don't clobber
         // those edits — they'll push on the next auto-sync cycle.
@@ -615,7 +618,7 @@ export const useStore = create<AppState>((set, get) => {
           set({ syncing: false, syncStatus: `Pull failed (HTTP ${res.status}).` });
           return;
         }
-        const project = (await res.json()) as ProjectFile;
+        const project = parseProject(await res.text());
         if (workspaceDir) {
           const fileName = availableFileName(projects, project.name || 'project');
           const ref = await createProjectFile(workspaceDir, fileName, project);

@@ -4,6 +4,7 @@
 
 import pg from 'pg';
 import { mergeProjects } from '../../src/sync/project';
+import { parseProject } from '../../src/persistence/file';
 import { ensureOrderKeys } from '../../src/model/orderKey';
 import type { ProjectFile } from '../../src/model/types';
 
@@ -94,8 +95,13 @@ export async function syncProject(id: string, client: ProjectFile): Promise<Sync
     }
     const server = rows.length ? (rows[0].data as ProjectFile) : null;
     // mergeProjects(server, client): server is "local", client "remote". The merge
-    // is symmetric, so the argument order doesn't change the result.
-    const merged = server ? mergeProjects(server, client) : normalize(client);
+    // is symmetric, so the argument order doesn't change the result. BOTH sides are
+    // normalized first — an old-build client (or an old stored row) may still carry
+    // legacy shapes (e.g. time.accumulatedSeconds), and merging those raw would
+    // silently drop data the migration knows how to convert.
+    const merged = server
+      ? mergeProjects(normalize(server), normalize(client))
+      : normalize(client);
     await conn.query(
       `insert into projects (id, data, updated_at) values ($1, $2, now())
        on conflict (id) do update set data = excluded.data, updated_at = now()`,
@@ -111,8 +117,13 @@ export async function syncProject(id: string, client: ProjectFile): Promise<Sync
   }
 }
 
-/** A first-seen project may come from an older client without order keys. */
+/**
+ * Run a project through the app's full on-load migration (parseProject): legacy
+ * time counters become intervals, order keys / ids / histories are backfilled.
+ * Deterministic, so every peer normalizing the same data gets the same result.
+ */
 function normalize(p: ProjectFile): ProjectFile {
-  ensureOrderKeys(p.root.children);
-  return p;
+  const parsed = parseProject(JSON.stringify(p));
+  ensureOrderKeys(parsed.root.children);
+  return parsed;
 }

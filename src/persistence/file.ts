@@ -28,6 +28,8 @@ function migrateStatuses(raw: any): StatusDef[] {
     label: String(s.label ?? s.id),
     color: String(s.color ?? '#888888'),
     kind: inferKind(s),
+    // Preserve the per-status merge clock (else edits regress to "oldest" in sync).
+    ...(typeof s.updatedAt === 'string' ? { updatedAt: s.updatedAt } : {}),
   }));
 }
 
@@ -125,6 +127,9 @@ export function parseProject(text: string): ProjectFile {
       raw.statusTombstones && typeof raw.statusTombstones === 'object'
         ? raw.statusTombstones
         : {},
+    // Preserve the project-metadata merge clock — dropping it on load would make
+    // name/pointScale/timer merges fall back to tiebreaks after every restart.
+    ...(typeof raw.updatedAt === 'string' ? { updatedAt: raw.updatedAt } : {}),
     root: { children },
   };
 }

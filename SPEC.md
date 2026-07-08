@@ -179,6 +179,15 @@ resets history.
   blue busy · red error).
 - **Empty project:** a welcome card teaching the core keys (Enter/Tab/S/P/Space/?),
   not a bare "no tasks" line. Active tab shows an amber dot while unsaved.
+- **Split view:** toolbar ◫ Split ▾ → *Split right* / *Split down* opens a second
+  pane (moving the nearest other tab there), with a drag-resizable divider;
+  choosing the other direction while split re-orients it. **One pane is focused**
+  (full editing, keyboard, sync — the store's singleton document); the other
+  renders read-only, slightly dimmed, with a "click to focus" hint — any click
+  swaps which document is hot, restoring that pane's selection and undo history.
+  Opening a file already shown in the other pane focuses that pane instead of
+  duplicating it. *Close split* folds the cold pane's tabs back. Split layout is
+  session-only (not persisted).
 - **Tabs:** open projects appear as tabs above the outline. Click an inactive tab to
   switch; **double-click** any tab to rename it inline; right-click for Rename / Close;
   ✕ closes it. Renaming a project renames its **`.json` file on disk** to match (the

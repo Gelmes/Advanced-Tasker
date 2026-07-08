@@ -122,6 +122,33 @@ export function WorkspaceBar() {
     }
   };
 
+  // Split menu (same anchoring pattern).
+  const split = useStore((s) => s.split);
+  const splitView = useStore((s) => s.splitView);
+  const closeSplit = useStore((s) => s.closeSplit);
+  const [splitMenuAt, setSplitMenuAt] = useState<{ x: number; y: number } | null>(null);
+  const splitBtnRef = useRef<View>(null);
+  const openSplitMenu = () => {
+    const node: any = splitBtnRef.current;
+    if (node?.measureInWindow) {
+      node.measureInWindow((x: number, y: number, _w: number, h: number) =>
+        setSplitMenuAt({ x, y: y + h + 4 }),
+      );
+    } else {
+      setSplitMenuAt({ x: 200, y: 44 });
+    }
+  };
+  const splitMenuItems: MenuEntry[] = [
+    { label: 'Split right', onPress: () => void splitView('row') },
+    { label: 'Split down', onPress: () => void splitView('column') },
+    ...(split
+      ? ([
+          'divider',
+          { label: 'Close split', onPress: () => closeSplit() },
+        ] as MenuEntry[])
+      : []),
+  ];
+
   const fileMenuItems: MenuEntry[] = [
     { label: 'New project', onPress: () => void newProjectInFolder() },
     'divider',
@@ -160,6 +187,9 @@ export function WorkspaceBar() {
         <Button label="Statuses" onPress={() => setStatusManagerOpen(true)} />
         <Button label="📊 Charts" onPress={() => setChartsOpen(true)} />
         <Button label="Details" onPress={toggleDetails} />
+        <View ref={splitBtnRef} collapsable={false}>
+          <Button label="◫ Split ▾" onPress={openSplitMenu} />
+        </View>
         <Sep />
         <Button label="⇅ Sync" onPress={() => setSyncOpen(true)} />
         <Button label="⌨ Shortcuts" onPress={() => setHelpOpen(true)} />
@@ -171,6 +201,7 @@ export function WorkspaceBar() {
       <StatusPill tone={status.tone} label={status.label} />
 
       <ContextMenu at={fileMenuAt} items={fileMenuItems} onClose={() => setFileMenuAt(null)} />
+      <ContextMenu at={splitMenuAt} items={splitMenuItems} onClose={() => setSplitMenuAt(null)} />
       <StatusManager visible={statusManagerOpen} onClose={() => setStatusManagerOpen(false)} />
       <ChartsModal visible={chartsOpen} onClose={() => setChartsOpen(false)} />
       <SyncSettings visible={syncOpen} onClose={() => setSyncOpen(false)} />

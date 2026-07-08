@@ -73,6 +73,31 @@ export interface ClipboardItem {
   mode: 'copy' | 'cut';
 }
 
+/**
+ * The parked document of the OTHER split pane (SPEC.md §4 "Split view"). The
+ * store's singleton fields always hold the FOCUSED pane; the stash holds the
+ * cold pane's full document state, restored wholesale on focus swap. The cold
+ * pane renders read-only, so the stash can never drift while parked.
+ */
+export interface PaneStash {
+  project: ProjectFile;
+  fileHandle: FileRef | null;
+  fileName: string | null;
+  selectedId: string | null;
+  past: ProjectFile[];
+  future: ProjectFile[];
+  openTabs: string[];
+}
+
+export interface SplitState {
+  direction: 'row' | 'column';
+  /** The FIRST pane's share of the split axis (0.2–0.8); stable across swaps. */
+  fraction: number;
+  /** Which side the COLD (stashed) pane renders on. */
+  stashSide: 'first' | 'second';
+  stash: PaneStash;
+}
+
 export interface AppState {
   project: ProjectFile;
   selectedId: string | null;
@@ -123,6 +148,16 @@ export interface AppState {
   /** UI theme: follow the OS, or force light/dark. Persisted. */
   themeMode: 'system' | 'light' | 'dark';
   setThemeMode: (mode: 'system' | 'light' | 'dark') => void;
+
+  // Split view (two panes; the singleton doc fields are always the focused pane)
+  split: SplitState | null;
+  /** Open a second pane (moves the nearest other tab there, else starts empty). */
+  splitView: (direction: 'row' | 'column') => Promise<void>;
+  /** Swap focus to the cold pane (stash <-> singleton). */
+  focusOther: () => Promise<void>;
+  /** Close the split, folding the cold pane's tabs back into the focused pane. */
+  closeSplit: () => void;
+  setSplitFraction: (fraction: number) => void;
 
   // Selection / mode
   select: (id: string | null) => void;
@@ -467,6 +502,7 @@ export const useStore = create<AppState>((set, get) => {
     syncing: false,
     syncStatus: null,
     editRev: 0,
+    split: null,
     themeMode: (readLS('advanced-tasker:theme') || 'system') as 'system' | 'light' | 'dark',
 
     setThemeMode: (mode) => {
@@ -1161,6 +1197,12 @@ export const useStore = create<AppState>((set, get) => {
     },
 
     switchProject: async (fileName) => {
+      // Already open in the other split pane? Focus it instead of opening the
+      // same file twice (duplicate docs would fight over autosave + row ids).
+      if (get().split?.stash.fileName === fileName) {
+        await get().focusOther();
+        return;
+      }
       const ref = get().projects.find((p) => p.fileName === fileName);
       if (!ref) return;
       try {
@@ -1348,6 +1390,100 @@ export const useStore = create<AppState>((set, get) => {
         get().newProject();
         void persistCurrentFolder();
       }
+    },
+
+    // --- Split view (SPEC.md §4): singleton = focused pane, stash = cold pane ---
+
+    splitView: async (direction) => {
+      const cur = get().split;
+      if (cur) {
+        set({ split: { ...cur, direction } }); // already split — just re-orient
+        return;
+      }
+      await saveIfDirty();
+      const { openTabs, fileName, projects } = get();
+      // Show a DIFFERENT document in the new pane when one is open: move the
+      // nearest other tab there; the current doc stays put as the first side.
+      const otherFile = openTabs.find((t) => t !== fileName) ?? null;
+      const ref = otherFile ? projects.find((p) => p.fileName === otherFile) : undefined;
+      const stash: PaneStash = {
+        project: get().project,
+        fileHandle: get().fileHandle,
+        fileName: get().fileName,
+        selectedId: get().selectedId,
+        past: get().past,
+        future: get().future,
+        openTabs: openTabs.filter((t) => t !== otherFile),
+      };
+      let project = createEmptyProject('Untitled');
+      let handle: FileRef | null = null;
+      if (ref) {
+        try {
+          project = await readProjectFromRef(ref);
+          handle = ref.handle;
+        } catch {
+          project = createEmptyProject('Untitled'); // unreadable — empty pane
+        }
+      }
+      resetHistory();
+      set({
+        split: { direction, fraction: 0.5, stashSide: 'first', stash },
+        project,
+        fileHandle: handle,
+        fileName: handle ? otherFile : null,
+        selectedId: null,
+        mode: 'selected',
+        dirty: false,
+        openTabs: handle && otherFile ? [otherFile] : [],
+      });
+    },
+
+    focusOther: async () => {
+      const split = get().split;
+      if (!split) return;
+      await saveIfDirty();
+      const stash: PaneStash = {
+        project: get().project,
+        fileHandle: get().fileHandle,
+        fileName: get().fileName,
+        selectedId: get().selectedId,
+        past: get().past,
+        future: get().future,
+        openTabs: get().openTabs,
+      };
+      const s = split.stash;
+      resetHistory(); // clears edit-coalescing trackers; the stacks are restored below
+      set({
+        project: s.project,
+        fileHandle: s.fileHandle,
+        fileName: s.fileName,
+        selectedId: s.selectedId,
+        mode: 'selected',
+        dirty: false,
+        past: s.past,
+        future: s.future,
+        openTabs: s.openTabs,
+        split: { ...split, stash, stashSide: split.stashSide === 'first' ? 'second' : 'first' },
+      });
+      await persistCurrentFolder();
+    },
+
+    closeSplit: () => {
+      const split = get().split;
+      if (!split) return;
+      // Fold the cold pane's tabs back so nothing silently disappears. The stash
+      // is save-clean by construction (saved before stashing; cold panes are
+      // read-only), so dropping its live state loses nothing.
+      const mine = get().openTabs;
+      const merged = [...mine, ...split.stash.openTabs.filter((t) => !mine.includes(t))];
+      set({ split: null, openTabs: merged });
+      void persistCurrentFolder();
+    },
+
+    setSplitFraction: (fraction) => {
+      const split = get().split;
+      if (!split) return;
+      set({ split: { ...split, fraction: Math.min(0.8, Math.max(0.2, fraction)) } });
     },
 
     restoreWorkspace: async () => {

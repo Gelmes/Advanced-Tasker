@@ -1,9 +1,8 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { Platform, SafeAreaView, StyleSheet, View } from 'react-native';
-import { OutlineView } from './src/components/OutlineView';
+import { MainArea } from './src/components/SplitView';
 import { ProjectSidebar } from './src/components/ProjectSidebar';
-import { TabBar } from './src/components/TabBar';
 import { TaskDetails } from './src/components/TaskDetails';
 import { WorkspaceBar } from './src/components/WorkspaceBar';
 import { DragProvider } from './src/components/DragContext';
@@ -65,8 +64,7 @@ export default function App() {
         <DragProvider>
           <View style={styles.main}>
             <WorkspaceBar />
-            <TabBar />
-            <OutlineView />
+            <MainArea />
           </View>
         </DragProvider>
         <TaskDetails />

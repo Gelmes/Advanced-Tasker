@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useRef } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { InlineMarkdown } from '../markdown/InlineMarkdown';
+import { paneScroll } from '../paneScroll';
 import { completion, computeRollup } from '../model/rollups';
 import { elapsedSeconds, formatDuration } from '../model/time';
 import type { PaneStash } from '../store/useStore';
@@ -108,6 +109,15 @@ function ColdPane({ stash }: { stash: PaneStash }) {
   const doneIds = new Set(project.statuses.filter((s) => s.kind === 'done').map((s) => s.id));
   const nowMs = Date.now(); // cold panes don't tick — refreshed on any re-render
 
+  // Open at the offset the document was parked at, and keep the memory current
+  // while the user scrolls the cold pane — a focus swap lands exactly there.
+  const scrollRef = useRef<ScrollView>(null);
+  useEffect(() => {
+    paneScroll.setCold(stash.scrollY);
+    (scrollRef.current as any)?.scrollTo?.({ y: stash.scrollY, animated: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stash.fileName, stash.project.id]);
+
   return (
     <Pressable style={styles.cold} onPress={() => void focusOther()}>
       {/* Mini tab strip mirroring the pane's parked tabs. */}
@@ -124,7 +134,13 @@ function ColdPane({ stash }: { stash: PaneStash }) {
         ))}
         <Text style={styles.coldHint}>click to focus</Text>
       </View>
-      <ScrollView style={styles.fill} contentContainerStyle={styles.coldContent}>
+      <ScrollView
+        ref={scrollRef}
+        style={styles.fill}
+        contentContainerStyle={styles.coldContent}
+        onScroll={(e) => paneScroll.setCold(e.nativeEvent.contentOffset.y)}
+        scrollEventThrottle={16}
+      >
         {project.root.children.length === 0 ? (
           <Text style={styles.coldEmpty}>Empty project.</Text>
         ) : (

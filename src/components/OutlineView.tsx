@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNow } from '../hooks/useNow';
+import { paneScroll } from '../paneScroll';
 import { useStore } from '../store/useStore';
 import { color, font, radius } from '../theme';
 import { NodeRow } from './NodeRow';
@@ -10,6 +11,16 @@ export function OutlineView() {
   const project = useStore((s) => s.project);
   const nowMs = useNow();
 
+  // Report scroll offset + accept restores, so split-view focus swaps can put
+  // each pane back where it was (paneScroll owns the memory).
+  const scrollRef = useRef<ScrollView>(null);
+  useEffect(() => {
+    paneScroll.registerLiveScroller((y) =>
+      (scrollRef.current as any)?.scrollTo?.({ y, animated: false }),
+    );
+    return () => paneScroll.registerLiveScroller(null);
+  }, []);
+
   const doneStatusIds = useMemo(
     () => new Set(project.statuses.filter((s) => s.kind === 'done').map((s) => s.id)),
     [project.statuses],
@@ -17,7 +28,13 @@ export function OutlineView() {
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
+      <ScrollView
+        ref={scrollRef}
+        style={styles.list}
+        contentContainerStyle={styles.listContent}
+        onScroll={(e) => paneScroll.setLive(e.nativeEvent.contentOffset.y)}
+        scrollEventThrottle={16}
+      >
         {project.root.children.length === 0 ? (
           <EmptyState />
         ) : (

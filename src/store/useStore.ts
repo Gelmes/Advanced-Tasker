@@ -61,6 +61,7 @@ import {
   type FolderEntry,
 } from '../persistence/handleStore';
 import { getStoredToken, storeToken } from '../persistence/secretStore';
+import { paneScroll } from '../paneScroll';
 import { applyLocalView, fingerprint } from '../sync/project';
 
 // Global app state: the project tree, transient UI state (selection + mode), and
@@ -87,6 +88,8 @@ export interface PaneStash {
   past: ProjectFile[];
   future: ProjectFile[];
   openTabs: string[];
+  /** Scroll offset the pane was at when parked (restored on focus). */
+  scrollY: number;
 }
 
 export interface SplitState {
@@ -1414,6 +1417,7 @@ export const useStore = create<AppState>((set, get) => {
         past: get().past,
         future: get().future,
         openTabs: openTabs.filter((t) => t !== otherFile),
+        scrollY: paneScroll.getLive(),
       };
       let project = createEmptyProject('Untitled');
       let handle: FileRef | null = null;
@@ -1436,6 +1440,7 @@ export const useStore = create<AppState>((set, get) => {
         dirty: false,
         openTabs: handle && otherFile ? [otherFile] : [],
       });
+      paneScroll.scrollLiveTo(0); // the newly-opened pane starts at the top
     },
 
     focusOther: async () => {
@@ -1450,8 +1455,12 @@ export const useStore = create<AppState>((set, get) => {
         past: get().past,
         future: get().future,
         openTabs: get().openTabs,
+        scrollY: paneScroll.getLive(),
       };
       const s = split.stash;
+      // Where the cold pane is CURRENTLY scrolled (the user may have scrolled it
+      // while parked) — that's where the swapped-in live pane should land.
+      const restoreY = paneScroll.getCold();
       resetHistory(); // clears edit-coalescing trackers; the stacks are restored below
       set({
         project: s.project,
@@ -1465,6 +1474,7 @@ export const useStore = create<AppState>((set, get) => {
         openTabs: s.openTabs,
         split: { ...split, stash, stashSide: split.stashSide === 'first' ? 'second' : 'first' },
       });
+      paneScroll.scrollLiveTo(restoreY); // after the swapped tree paints
       await persistCurrentFolder();
     },
 

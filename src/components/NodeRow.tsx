@@ -296,11 +296,15 @@ const styles = StyleSheet.create({
     borderColor: color.borderStrong,
     marginTop: (LINE_HEIGHT - 10) / 2,
   },
-  contentWrap: { flex: 1 },
+  // minWidth keeps the text readable when the window narrows — without it the
+  // fixed-width trailing controls squeeze flex:1 to ~0 and the text renders one
+  // character per line. Past the minimum, the trailing chips clip instead.
+  contentWrap: { flex: 1, minWidth: 150 },
   content: { fontSize: 14, lineHeight: LINE_HEIGHT, color: color.ink },
   placeholder: { color: color.inkSoft, fontStyle: 'italic' },
   input: {
     flex: 1,
+    minWidth: 150, // match contentWrap — no per-character wrap while editing
     fontSize: 14,
     lineHeight: LINE_HEIGHT,
     color: color.ink,
@@ -319,6 +323,9 @@ const styles = StyleSheet.create({
     lineHeight: LINE_HEIGHT,
     color: color.inkSoft,
     fontVariant: ['tabular-nums'],
+    // The most compressible thing in the row: ellipsize before content squeezes.
+    flexShrink: 1,
+    minWidth: 0,
   },
   timer: {
     width: 66,

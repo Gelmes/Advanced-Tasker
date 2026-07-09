@@ -8,6 +8,7 @@ import { WorkspaceBar } from './src/components/WorkspaceBar';
 import { DragProvider } from './src/components/DragContext';
 import { useAutosave } from './src/hooks/useAutosave';
 import { useAutoSync } from './src/hooks/useAutoSync';
+import { useFileWatch } from './src/hooks/useFileWatch';
 import { useKeyboardNav } from './src/hooks/useKeyboardNav';
 import { useStore } from './src/store/useStore';
 import { color, themeCss } from './src/theme';
@@ -16,6 +17,7 @@ export default function App() {
   useKeyboardNav();
   useAutosave();
   useAutoSync();
+  useFileWatch();
 
   const themeMode = useStore((s) => s.themeMode);
 

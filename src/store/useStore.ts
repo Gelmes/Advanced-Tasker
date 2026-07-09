@@ -62,7 +62,7 @@ import {
 } from '../persistence/handleStore';
 import { getStoredToken, storeToken } from '../persistence/secretStore';
 import { paneScroll } from '../paneScroll';
-import { applyLocalView, fingerprint } from '../sync/project';
+import { applyLocalView, fingerprint, mergeProjects } from '../sync/project';
 
 // Global app state: the project tree, transient UI state (selection + mode), and
 // the bound file. Structural changes go through pure ops in model/tree.ts via the
@@ -238,6 +238,12 @@ export interface AppState {
   listServerProjects: () => Promise<Array<{ id: string; name: string }>>;
   /** Pull a server project by id into the current workspace folder and open it. */
   pullProject: (id: string) => Promise<void>;
+  /**
+   * Re-read the bound file and merge external edits into the in-memory project
+   * (an outside editor — e.g. an agent — is just another "device"; same merge as
+   * sync). Called by useFileWatch when the file changes on disk underneath us.
+   */
+  reloadFromDisk: () => Promise<void>;
 
   setSidebarTab: (tab: 'projects' | 'search') => void;
   setTagQuery: (q: string) => void;
@@ -1393,6 +1399,46 @@ export const useStore = create<AppState>((set, get) => {
         get().newProject();
         void persistCurrentFolder();
       }
+    },
+
+    reloadFromDisk: async () => {
+      const { fileHandle, project } = get();
+      if (!fileHandle) return;
+      let disk: ProjectFile;
+      try {
+        disk = parseProject(await (await fileHandle.getFile()).text());
+      } catch {
+        return; // mid-write or momentarily unparseable — the next poll retries
+      }
+      if (disk.id !== project.id) {
+        // The file now holds a DIFFERENT project — merging two unrelated trees
+        // would interleave them. Surface it instead of guessing.
+        set({ error: 'The file on disk changed identity — reopen it to load the new project.' });
+        return;
+      }
+      if (fingerprint(disk) === fingerprint(project)) return; // echo of our own write
+      const merged = mergeProjects(project, disk);
+      if (fingerprint(merged) !== fingerprint(project)) {
+        // Real external changes: adopt them like a sync merge — keep this
+        // device's collapse state, drop undo (not an undoable local step).
+        applyLocalView(merged, project);
+        resetHistory();
+        const sel = get().selectedId;
+        const keepSel = sel && findNode(merged.root.children, sel) ? sel : null;
+        set({
+          project: merged,
+          selectedId: keepSel,
+          mode: 'selected',
+          dirty: true,
+          syncStatus: 'Merged changes from disk.',
+        });
+      } else {
+        // Disk is behind memory (e.g. an editor wrote from a stale base) — the
+        // merge resurrected our newer state; write it back so disk converges.
+        set({ dirty: true });
+      }
+      await get().saveProject();
+      void get().syncNow(); // propagate the external edits to other devices too
     },
 
     // --- Split view (SPEC.md §4): singleton = focused pane, stash = cold pane ---

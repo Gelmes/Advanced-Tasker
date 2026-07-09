@@ -154,9 +154,13 @@ shape updates this file in the same commit (see the changelog at the bottom).
 **respect `tombstones`** — an id listed there is deleted; don't report or
 re-create it.
 
-**Writing files:** prefer read-only. These files are also edited by the app and
-merged by a sync server; a naive external write can be overwritten or cause a
-merge to mis-resolve. If an agent must write:
+**Writing files:** supported — the app **watches the open file and merges external
+edits in live** (same engine as device sync, polling ~3s; the GUI updates within a
+few seconds and nothing is clobbered in either direction). Two hard constraints:
+keep the same top-level `id` (a changed id reads as "different project" and is
+refused rather than merged), and write the file atomically if possible (a partially
+written file is skipped until the next poll). Then follow the rules below so the
+merge resolves your intent correctly:
 1. Preserve every field it doesn't understand.
 2. Bump the edited node's `updatedAt` (ISO, now) — and the matching per-field
    clock if editing `status` / `storyPoints` / `dueDate`.

@@ -228,6 +228,10 @@ resets history.
   browser the permission resets per session, so the sidebar opens to the remembered
   folder for one-click reopen.) Switching projects saves the current one first. A
   standalone single-file Open/Save As path also exists. Auto-save is debounced.
+  The bound file is **watched** (lastModified poll + on window focus): external
+  edits — agents, scripts — are re-read and **merged** into the in-memory project
+  with the sync engine, so they appear live and are never clobbered by autosave.
+  A file whose project `id` changed is refused with an error (reopen instead).
 - **Components:** `ProjectSidebar` (folder switcher + project rename/delete) ·
   `WorkspaceBar` (a **File ▾ menu** for new/open/save actions — desktop-menu style,
   since autosave makes Save occasional — plus undo/redo, statuses, charts, details,

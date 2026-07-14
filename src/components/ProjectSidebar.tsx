@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
   divider: { height: 1, backgroundColor: color.border, marginVertical: 8 },
   tabs: { flexDirection: 'row', gap: 6, paddingHorizontal: 12, paddingBottom: 8 },
   tab: { flex: 1, paddingVertical: 5, borderRadius: radius.sm, backgroundColor: color.hover },
-  tabStar: { flex: 0, paddingHorizontal: 10 },
+  tabStar: { flex: 0, minWidth: 40, paddingHorizontal: 12, justifyContent: 'center' },
   starMark: { color: color.warn },
   tabActive: { backgroundColor: color.accentSoft },
   tabText: { fontSize: font.sm, color: color.inkMid, textAlign: 'center' },

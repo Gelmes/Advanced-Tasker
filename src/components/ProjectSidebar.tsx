@@ -153,16 +153,16 @@ export function ProjectSidebar() {
 
         <View style={styles.divider} />
 
-        {/* Projects | Search toggle */}
+        {/* Projects | Search | ★ toggle */}
         <View style={styles.tabs}>
-          {(['projects', 'search'] as const).map((t) => (
+          {(['projects', 'search', 'bookmarks'] as const).map((t) => (
             <Pressable
               key={t}
               onPress={() => setSidebarTab(t)}
-              style={[styles.tab, tab === t && styles.tabActive]}
+              style={[styles.tab, t === 'bookmarks' && styles.tabStar, tab === t && styles.tabActive]}
             >
               <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
-                {t === 'projects' ? 'Projects' : 'Search'}
+                {t === 'projects' ? 'Projects' : t === 'search' ? 'Search' : '★'}
               </Text>
             </Pressable>
           ))}
@@ -220,6 +220,46 @@ export function ProjectSidebar() {
               );
             })
           )
+        ) : tab === 'bookmarks' ? (
+          <View>
+            {(() => {
+              const marks = entries.filter((e) => e.bookmarked);
+              if (!marks.length) {
+                return (
+                  <Text style={styles.empty}>
+                    No bookmarks yet — select a task and press B (or click its ★).
+                  </Text>
+                );
+              }
+              return marks.map((m) => {
+                const otherFile = !!m.fileName && m.fileName !== activeFile;
+                const sub = [otherFile ? `📄 ${m.projectName}` : '', m.breadcrumb]
+                  .filter(Boolean)
+                  .join(' · ');
+                return (
+                  <Pressable
+                    key={`${m.fileName}:${m.id}`}
+                    onPress={() => void openSearchResult(m.fileName, m.id)}
+                    style={({ pressed, hovered }: any) => [
+                      styles.result,
+                      hovered && styles.itemHover,
+                      pressed && styles.itemPressed,
+                    ]}
+                  >
+                    <Text style={styles.resultText} numberOfLines={1}>
+                      <Text style={styles.starMark}>★ </Text>
+                      {m.content || 'Untitled'}
+                    </Text>
+                    {sub ? (
+                      <Text style={styles.resultCrumb} numberOfLines={1}>
+                        {sub}
+                      </Text>
+                    ) : null}
+                  </Pressable>
+                );
+              });
+            })()}
+          </View>
         ) : (
           <View>
             <TextInput
@@ -347,6 +387,8 @@ const styles = StyleSheet.create({
   divider: { height: 1, backgroundColor: color.border, marginVertical: 8 },
   tabs: { flexDirection: 'row', gap: 6, paddingHorizontal: 12, paddingBottom: 8 },
   tab: { flex: 1, paddingVertical: 5, borderRadius: radius.sm, backgroundColor: color.hover },
+  tabStar: { flex: 0, paddingHorizontal: 10 },
+  starMark: { color: color.warn },
   tabActive: { backgroundColor: color.accentSoft },
   tabText: { fontSize: font.sm, color: color.inkMid, textAlign: 'center' },
   tabTextActive: { color: color.accentInk, fontWeight: '600' },

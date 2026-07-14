@@ -60,6 +60,10 @@ export interface TaskNode {
    */
   storyPointsUpdatedAt?: string | null;
   dueDateUpdatedAt?: string | null;
+  /** Starred for quick access (SPEC.md §4 — the sidebar ★ tab). Synced. */
+  bookmarked?: boolean;
+  /** Per-field merge clock for `bookmarked` (same pattern as statusUpdatedAt). */
+  bookmarkedUpdatedAt?: string | null;
   /** Optional target date (YYYY-MM-DD) — drives the burndown ideal line. */
   dueDate?: string | null;
   /**

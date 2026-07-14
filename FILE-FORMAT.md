@@ -102,7 +102,8 @@ shape updates this file in the same commit (see the changelog at the bottom).
 | `dueDate` | `YYYY-MM-DD` \| null | – | Target date. |
 | `collapsed` | boolean | ✓ | Whether the subtree is folded in the UI. **Device-local view state — ignore for data purposes.** |
 | `createdAt` / `updatedAt` | ISO time | ✓ | Creation time / last edit to this node (any field). |
-| `statusUpdatedAt`, `storyPointsUpdatedAt`, `dueDateUpdatedAt` | ISO time \| null | – | Per-field sync clocks (when that specific field last changed). Useful as "when did the status change"; otherwise ignorable. |
+| `statusUpdatedAt`, `storyPointsUpdatedAt`, `dueDateUpdatedAt`, `bookmarkedUpdatedAt` | ISO time \| null | – | Per-field sync clocks (when that specific field last changed). Useful as "when did the status change"; otherwise ignorable. |
+| `bookmarked` | boolean | – | Starred for quick access (the sidebar ★ list). Absent = false. Agents may set it to surface items for the user — stamp `bookmarkedUpdatedAt` (or at least bump `updatedAt`). |
 | `orderKey` | string | – | Fractional-index sync key. **The array order of `children` is the authoritative sibling order** — treat `orderKey` as opaque bookkeeping. |
 | `deletedAt` | ISO time \| null | – | Sync-boundary tombstone. Normally **absent** in files (deleted nodes are removed from the tree and listed in project `tombstones` instead). |
 | `children` | TaskNode[] | ✓ | Sub-nodes, same shape, in display order. |
@@ -186,6 +187,7 @@ a file the app hasn't re-saved yet:
 
 | Date | Change |
 |---|---|
+| 2026-07-10 | Added `bookmarked` + `bookmarkedUpdatedAt` on nodes (sidebar ★ list; per-field merged — a side that never set the field can't clobber it). |
 | 2026-07-08 | `time` became interval-based (`intervals` + optional `effortUpdatedAt`); legacy `accumulatedSeconds` migrates on load. |
 | 2026-07-07 | Added `statusTombstones` (status-definition deletes sync). |
 | 2026-07-06 | Added `tombstones`, per-field clocks (`statusUpdatedAt`, `storyPointsUpdatedAt`, `dueDateUpdatedAt`), `orderKey`, `StatusDef.updatedAt`, project `updatedAt`, project `id`, `deletedAt`. |

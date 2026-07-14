@@ -229,6 +229,24 @@ describe('merge', () => {
     expect(byId(merge([running], [idle]))['x'].time.startedAt).toBe('2026-01-02T09:00:00.000Z');
   });
 
+  it('(g) bookmarked merges on its own clock — survives a newer content edit elsewhere', () => {
+    const T1 = '2026-01-01T00:00:00.000Z';
+    const T2 = '2026-01-02T00:00:00.000Z';
+    // A bookmarked at T1; B edited content at T2 (newer updatedAt, no bookmark).
+    const a = sn('x', { bookmarked: true, bookmarkedUpdatedAt: T1, updatedAt: T1 });
+    const b = sn('x', { content: 'edited on B', updatedAt: T2 });
+    const m = byId(merge([a], [b]))['x'];
+    expect(m.content).toBe('edited on B'); // content follows the newer node...
+    expect(m.bookmarked).toBe(true); // ...but the star is NOT clobbered
+    expect(byId(merge([b], [a]))['x'].bookmarked).toBe(true); // symmetric
+  });
+
+  it('(g) a newer un-bookmark beats an older bookmark', () => {
+    const on = sn('x', { bookmarked: true, bookmarkedUpdatedAt: '2026-01-01T00:00:00.000Z' });
+    const off = sn('x', { bookmarked: false, bookmarkedUpdatedAt: '2026-06-01T00:00:00.000Z' });
+    expect(byId(merge([on], [off]))['x'].bookmarked).toBe(false);
+  });
+
   it('(c) delete newer than edit wins (node stays deleted)', () => {
     const edit = sn('x', { content: 'edited', updatedAt: '2026-01-01T00:00:00.000Z' });
     const del = sn('x', {

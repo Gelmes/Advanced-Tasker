@@ -35,6 +35,7 @@ const SECTIONS: Section[] = [
       ['Space', 'Start / stop timer'],
       ['S / Shift+S', 'Cycle status fwd / back (promotes note → task)'],
       ['P / Shift+P', 'Cycle story points fwd / back'],
+      ['B', 'Bookmark / unbookmark (★ tab in the sidebar)'],
       ['E / F2', 'Edit the selected row'],
       ['I', 'Toggle the details panel'],
       ['Ctrl/Cmd+C / X', 'Copy / cut node (with its children)'],

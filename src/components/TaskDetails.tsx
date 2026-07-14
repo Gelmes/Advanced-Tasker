@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useNow } from '../hooks/useNow';
 import {
   completedAt,
@@ -115,6 +115,7 @@ export function TaskDetails() {
   const project = useStore((s) => s.project);
   const selectedId = useStore((s) => s.selectedId);
   const setDueDateFor = useStore((s) => s.setDueDateFor);
+  const toggleBookmarkFor = useStore((s) => s.toggleBookmarkFor);
   const nowMs = useNow();
 
   if (!open) return null;
@@ -160,6 +161,14 @@ export function TaskDetails() {
                 <Text style={styles.chipText}>{node.storyPoints} pt</Text>
               </View>
             )}
+            <Pressable
+              onPress={() => toggleBookmarkFor(node.id)}
+              style={[styles.chip, node.bookmarked && styles.chipStarOn]}
+            >
+              <Text style={[styles.chipText, node.bookmarked && styles.chipStarOnText]}>
+                {node.bookmarked ? '★ Bookmarked' : '☆ Bookmark'}
+              </Text>
+            </Pressable>
           </View>
 
           <View style={styles.field}>
@@ -265,6 +274,8 @@ const styles = StyleSheet.create({
     backgroundColor: color.hover,
   },
   chipText: { fontSize: font.sm, color: color.inkMid },
+  chipStarOn: { backgroundColor: color.warnSoft },
+  chipStarOnText: { color: color.warn, fontWeight: '600' },
   dot: { width: 8, height: 8, borderRadius: 4 },
   section: { gap: 6 },
   sectionTitle: {

@@ -18,6 +18,7 @@ import {
   moveWithinSiblings,
   outdent,
   visibleNodes,
+  setBookmarked,
   setCollapsed,
   setContent,
   setStatus,
@@ -135,7 +136,7 @@ export interface AppState {
   /** Vim-style navigation keys (hjkl, gg/G, Ctrl-d/u, i/a/o). Persisted. */
   vimNav: boolean;
   /** Which sidebar view is showing. */
-  sidebarTab: 'projects' | 'search';
+  sidebarTab: 'projects' | 'search' | 'bookmarks';
   /** Search/tag-filter query for the sidebar search view. */
   tagQuery: string;
   helpOpen: boolean;
@@ -203,6 +204,9 @@ export interface AppState {
   cyclePointsFor: (id: string, dir?: 1 | -1) => void;
   cyclePointsSelected: (dir?: 1 | -1) => void;
   setPointsFor: (id: string, points: number | null) => void;
+  /** Star/unstar a node (B key, row ★, details chip — sidebar ★ tab lists them). */
+  toggleBookmarkFor: (id: string) => void;
+  toggleBookmarkSelected: () => void;
 
   // Timer (single active node, SPEC.md §2)
   toggleTimerFor: (id: string) => void;
@@ -245,7 +249,7 @@ export interface AppState {
    */
   reloadFromDisk: () => Promise<void>;
 
-  setSidebarTab: (tab: 'projects' | 'search') => void;
+  setSidebarTab: (tab: 'projects' | 'search' | 'bookmarks') => void;
   setTagQuery: (q: string) => void;
   /** Open the sidebar search filtered to a tag (clicked from a node). */
   searchTag: (tag: string) => void;
@@ -948,6 +952,17 @@ export const useStore = create<AppState>((set, get) => {
     },
 
     setPointsFor: (id, points) => apply((root) => setStoryPoints(root, id, points)),
+
+    toggleBookmarkFor: (id) => {
+      const node = findNode(get().project.root.children, id);
+      if (!node) return;
+      apply((root) => setBookmarked(root, id, !(node.bookmarked ?? false)));
+    },
+
+    toggleBookmarkSelected: () => {
+      const { selectedId } = get();
+      if (selectedId) get().toggleBookmarkFor(selectedId);
+    },
 
     toggleTimerFor: (id) => {
       const nowMs = Date.now();

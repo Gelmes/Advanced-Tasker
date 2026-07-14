@@ -240,6 +240,15 @@ export function setStoryPoints(root: TaskNode[], id: string, points: number | nu
   touch(node);
 }
 
+/** Star/unstar a node for the sidebar ★ tab (SPEC.md §4). */
+export function setBookmarked(root: TaskNode[], id: string, on: boolean): void {
+  const node = findNode(root, id);
+  if (!node) return;
+  if ((node.bookmarked ?? false) !== on) node.bookmarkedUpdatedAt = nowIso(); // per-field clock
+  node.bookmarked = on;
+  touch(node);
+}
+
 /**
  * Next value in a cycle through [null, ...values], wrapping back to null after the
  * last value. Shared by status and story-point cycling.

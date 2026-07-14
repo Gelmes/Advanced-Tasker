@@ -111,7 +111,7 @@ inserts stay sorted and unique).
   every device so the migration is union-safe, and placed backwards from creation so
   it can't overlap future real runs. The sync fingerprint includes an effort digest
   (interval sum + clocks), since a union can change time without touching `updatedAt`.
-- **`status` / `storyPoints` / `dueDate`** — each resolved on its **own clock**
+- **`status` / `storyPoints` / `dueDate` / `bookmarked`** — each resolved on its **own clock**
   (`statusUpdatedAt` / `storyPointsUpdatedAt` / `dueDateUpdatedAt`), *not* the shared
   `updatedAt`. Every edit bumps `updatedAt`, so per-field clocks stop an edit to one
   field from clobbering a concurrent edit to another on the same node. For `status`

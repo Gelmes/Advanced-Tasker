@@ -12,6 +12,8 @@ export interface IndexEntry {
   content: string;
   breadcrumb: string;
   tags: string[];
+  /** Starred node — feeds the sidebar ★ tab (SPEC.md §4). */
+  bookmarked: boolean;
 }
 
 /** Flatten a project's nodes into index entries (with ancestor breadcrumbs). */
@@ -30,6 +32,7 @@ export function flattenForIndex(
         content: n.content,
         breadcrumb: trail.join(' › '),
         tags: extractTags(n.content),
+        bookmarked: n.bookmarked ?? false,
       });
       visit(n.children, [...trail, n.content || 'Untitled']);
     }

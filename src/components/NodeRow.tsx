@@ -54,6 +54,7 @@ export function NodeRow({ node, depth, statuses, doneStatusIds, nowMs }: Props) 
   const toggleCollapseFor = useStore((s) => s.toggleCollapseFor);
   const cycleStatusFor = useStore((s) => s.cycleStatusFor);
   const cyclePointsFor = useStore((s) => s.cyclePointsFor);
+  const toggleBookmarkFor = useStore((s) => s.toggleBookmarkFor);
   const toggleTimerFor = useStore((s) => s.toggleTimerFor);
   const searchTag = useStore((s) => s.searchTag);
 
@@ -194,6 +195,12 @@ export function NodeRow({ node, depth, statuses, doneStatusIds, nowMs }: Props) 
           </Pressable>
         )}
 
+        {node.bookmarked && (
+          <Pressable onPress={() => toggleBookmarkFor(node.id)} hitSlop={6}>
+            <Text style={styles.star}>★</Text>
+          </Pressable>
+        )}
+
         {rollup && (
           <Text style={styles.rollup} numberOfLines={1}>
             {`Σ ${formatDuration(rollup.seconds)}`}
@@ -318,6 +325,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     textAlignVertical: 'top',
   } as any,
+  star: { fontSize: 12, lineHeight: LINE_HEIGHT, color: color.warn },
   rollup: {
     fontSize: 11,
     lineHeight: LINE_HEIGHT,

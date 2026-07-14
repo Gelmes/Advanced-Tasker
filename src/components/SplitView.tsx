@@ -195,6 +195,7 @@ function ColdRow({
         <View style={styles.contentWrap}>
           <InlineMarkdown text={node.content || 'Empty'} style={styles.content} />
         </View>
+        {node.bookmarked && <Text style={styles.star}>★</Text>}
         {rollup && (
           <Text style={styles.rollup} numberOfLines={1}>
             {`Σ ${formatDuration(rollup.seconds)}`}
@@ -271,6 +272,7 @@ const styles = StyleSheet.create({
   },
   contentWrap: { flex: 1, minWidth: 150 },
   content: { fontSize: 14, lineHeight: LINE_HEIGHT, color: color.ink },
+  star: { fontSize: 12, lineHeight: LINE_HEIGHT, color: color.warn },
   rollup: {
     fontSize: 11,
     lineHeight: LINE_HEIGHT,

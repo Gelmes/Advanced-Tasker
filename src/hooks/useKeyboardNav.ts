@@ -168,6 +168,9 @@ export function useKeyboardNav(): void {
         case 'P':
           // Shift+P cycles story points backward.
           return consume(), s.cyclePointsSelected(e.shiftKey ? -1 : 1);
+        case 'b':
+        case 'B':
+          return consume(), s.toggleBookmarkSelected();
         case 'e':
         case 'F2':
           return consume(), s.editSelected();

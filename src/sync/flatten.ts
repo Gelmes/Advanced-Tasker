@@ -25,6 +25,8 @@ export interface SyncNode {
   statusUpdatedAt?: string | null;
   storyPointsUpdatedAt?: string | null;
   dueDateUpdatedAt?: string | null;
+  bookmarked?: boolean;
+  bookmarkedUpdatedAt?: string | null;
   createdAt: string;
   updatedAt: string;
   /** Tombstone timestamp, or null for a live node. */
@@ -63,6 +65,8 @@ function toSyncNode(node: TaskNode, parentId: string | null, orderKey: string): 
     statusUpdatedAt: node.statusUpdatedAt ?? null,
     storyPointsUpdatedAt: node.storyPointsUpdatedAt ?? null,
     dueDateUpdatedAt: node.dueDateUpdatedAt ?? null,
+    bookmarked: node.bookmarked ?? false,
+    bookmarkedUpdatedAt: node.bookmarkedUpdatedAt ?? null,
     createdAt: node.createdAt,
     updatedAt: node.updatedAt,
     deletedAt: node.deletedAt ?? null,
@@ -161,6 +165,8 @@ function toTaskNode(n: SyncNode, children: TaskNode[]): TaskNode {
     ...(n.statusUpdatedAt ? { statusUpdatedAt: n.statusUpdatedAt } : {}),
     ...(n.storyPointsUpdatedAt ? { storyPointsUpdatedAt: n.storyPointsUpdatedAt } : {}),
     ...(n.dueDateUpdatedAt ? { dueDateUpdatedAt: n.dueDateUpdatedAt } : {}),
+    ...(n.bookmarked ? { bookmarked: true } : {}),
+    ...(n.bookmarkedUpdatedAt ? { bookmarkedUpdatedAt: n.bookmarkedUpdatedAt } : {}),
     dueDate: n.dueDate,
     orderKey: n.orderKey,
     collapsed: n.collapsed,

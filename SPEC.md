@@ -194,8 +194,12 @@ resets history.
   display name sanitized to a safe filename, uniquified on collision) — the two never
   drift apart. The title is shown here only (not duplicated as a header or in the
   save indicator).
+- **Bookmarks:** `B` (row selected), the row's ★, or the details-panel chip stars a
+  node. Starred rows show an amber ★; the sidebar's **★ tab** lists bookmarks across
+  every project in the folder (same jump-to-node behavior as search results).
+  Bookmarks are data — they sync (per-field clock).
 - **Project sidebar:** a left slideout with (1) every **remembered folder** (📁 — click to
-  switch, ✕ to forget) and (2) a **Projects / Search** tab. Projects lists the open folder's
+  switch, ✕ to forget) and (2) a **Projects / Search / ★** tab. Projects lists the open folder's
   `.json` files — a row opens on click, renames on double-click or right-click → Rename
   (same file-rename semantics as tabs), and deletes via right-click: **Remove from this
   device…** (deletes the file; the sync server's copy is kept) or **Delete everywhere…**

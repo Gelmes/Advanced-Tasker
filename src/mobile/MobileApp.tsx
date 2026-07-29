@@ -4,8 +4,12 @@
 
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { BackHandler, SafeAreaView, StyleSheet } from 'react-native';
+import { BackHandler, StyleSheet } from 'react-native';
+// RN's own SafeAreaView is iOS-only — on Android the header renders under the
+// status-bar icons without this package's inset handling.
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { hydrateSyncConfig } from './secrets';
+import { readPrefs, writePrefs } from './cache';
 import { openMobileProject, useMobileAutoSync, useMobileCacheAutosave } from './sync';
 import { OutlineScreen } from './screens/OutlineScreen';
 import { ProjectsScreen } from './screens/ProjectsScreen';
@@ -18,6 +22,7 @@ function Shell() {
   const { name, palette } = useTheme();
   const [screen, setScreen] = useState<Screen>('projects');
   const [openId, setOpenId] = useState<string | null>(null);
+  const [captureOnOpen, setCaptureOnOpen] = useState(false);
   const [ready, setReady] = useState(false);
 
   // Boot: load the sync config from the keystore into the store; land on
@@ -45,20 +50,34 @@ function Shell() {
     return () => sub.remove();
   }, [screen]);
 
+  const open = async (id: string, capture = false) => {
+    await openMobileProject(id);
+    writePrefs({ lastProjectId: id });
+    setOpenId(id);
+    setCaptureOnOpen(capture);
+    setScreen('outline');
+  };
+
   return (
-    <SafeAreaView style={[styles.app, { backgroundColor: palette.appBg }]}>
+    <SafeAreaView
+      edges={['top', 'bottom']}
+      style={[styles.app, { backgroundColor: palette.appBg }]}
+    >
       {ready && screen === 'projects' && (
         <ProjectsScreen
-          onOpen={async (id) => {
-            await openMobileProject(id);
-            setOpenId(id);
-            setScreen('outline');
+          onOpen={(id) => open(id)}
+          onCapture={() => {
+            const last = readPrefs().lastProjectId;
+            if (last) void open(last, true).catch(() => {});
           }}
           onSettings={() => setScreen('settings')}
         />
       )}
       {ready && screen === 'outline' && (
-        <OutlineScreen onBack={() => setScreen('projects')} />
+        <OutlineScreen
+          onBack={() => setScreen('projects')}
+          initialCapture={captureOnOpen}
+        />
       )}
       {ready && screen === 'settings' && (
         <SettingsScreen onBack={() => setScreen('projects')} />
@@ -70,9 +89,11 @@ function Shell() {
 
 export function MobileApp() {
   return (
-    <MobileThemeProvider>
-      <Shell />
-    </MobileThemeProvider>
+    <SafeAreaProvider>
+      <MobileThemeProvider>
+        <Shell />
+      </MobileThemeProvider>
+    </SafeAreaProvider>
   );
 }
 

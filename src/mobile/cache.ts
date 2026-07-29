@@ -78,6 +78,33 @@ export function writeCachedProject(project: ProjectFile): void {
   }
 }
 
+export interface MobilePrefs {
+  /** Default target for quick capture from the Projects screen. */
+  lastProjectId?: string;
+}
+
+export function readPrefs(): MobilePrefs {
+  try {
+    const f = new File(Paths.document, 'mobile-prefs.json');
+    if (!f.exists) return {};
+    const parsed = JSON.parse(f.textSync());
+    return parsed && typeof parsed === 'object' ? (parsed as MobilePrefs) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function writePrefs(patch: Partial<MobilePrefs>): void {
+  try {
+    writeText(
+      new File(Paths.document, 'mobile-prefs.json'),
+      JSON.stringify({ ...readPrefs(), ...patch }),
+    );
+  } catch {
+    // preferences are best-effort
+  }
+}
+
 export function deleteCachedProject(id: string): void {
   try {
     const f = new File(projectsDir(), `${id}.json`);

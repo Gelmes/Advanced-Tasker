@@ -27,9 +27,12 @@ interface Row {
 
 export function ProjectsScreen({
   onOpen,
+  onCapture,
   onSettings,
 }: {
   onOpen: (id: string) => Promise<void>;
+  /** Quick capture into the last-used project (MOBILE.md: pocket → saved in two taps). */
+  onCapture: () => void;
   onSettings: () => void;
 }) {
   const palette = usePalette();
@@ -158,6 +161,12 @@ export function ProjectsScreen({
           )}
         />
       )}
+
+      {configured && (
+        <Pressable onPress={onCapture} style={[styles.fab, { backgroundColor: palette.accent }]}>
+          <Text style={styles.fabText}>＋</Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -199,4 +208,16 @@ const styles = StyleSheet.create({
   rowName: { fontSize: font.base, fontWeight: '500' },
   rowSub: { fontSize: font.sm },
   chevron: { fontSize: 22 },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
+  },
+  fabText: { color: '#ffffff', fontSize: 24, fontWeight: '600' },
 });

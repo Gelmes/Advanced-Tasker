@@ -74,7 +74,7 @@ const Row = memo(function Row({
   draft,
   inputRef,
   onChangeDraft,
-  onEndEdit,
+  onBlurInput,
   palette,
 }: {
   row: VisibleRow;
@@ -88,7 +88,9 @@ const Row = memo(function Row({
    *  toolbar op (indent/move keep you typing in the same node). */
   inputRef: React.RefObject<TextInput | null> | null;
   onChangeDraft: (text: string) => void;
-  onEndEdit: () => void;
+  /** Saves the draft only — it must NOT end edit mode, because Android fires
+   *  blur on touch-down of every toolbar tap. */
+  onBlurInput: () => void;
   palette: ReturnType<typeof usePalette>;
 }) {
   const { node, depth, hasChildren } = row;
@@ -148,7 +150,7 @@ const Row = memo(function Row({
           onChangeText={onChangeDraft}
           autoFocus
           multiline
-          onBlur={onEndEdit}
+          onBlur={onBlurInput}
         />
       ) : (
         <Text
@@ -223,8 +225,12 @@ export function OutlineScreen({
   const captureRef = useRef<TextInput>(null);
   const listRef = useRef<FlatList<VisibleRow>>(null);
   const editInputRef = useRef<TextInput | null>(null);
-  // Tapping a toolbar button blurs the editor; without this guard the blur
-  // handler would close edit mode before the structural op could run.
+  // Structural ops run from event handlers that may outlive a render, so the
+  // draft is read through a ref rather than a stale closure.
+  const editingRef = useRef(editing);
+  editingRef.current = editing;
+  // Toolbar taps blur the editor and can hide the keyboard; this suppresses the
+  // teardown paths while an op is in flight.
   const toolbarActionRef = useRef(false);
 
   // Lift = the full reported IME height. In theory the SafeAreaView's nav-bar
@@ -233,6 +239,10 @@ export function OutlineScreen({
   // small gap is fine — being hidden is not. `insets.bottom` still matters for
   // the resting (keyboard-closed) case, hence the guard.
   const keyboardLift = keyboardPad > 0 ? keyboardPad : 0;
+
+  // The structural toolbar follows the SELECTION (not editing) so a move that
+  // drops keyboard focus doesn't take the buttons away mid-reorder.
+  const toolbarVisible = !!editing || !!selectedId;
 
   const rows = useMemo(() => flattenVisible(project.root.children, 0, []), [project]);
   const statusById = useMemo(
@@ -254,17 +264,25 @@ export function OutlineScreen({
     const frame = Keyboard.addListener('keyboardDidChangeFrame', (e) =>
       bump(e.endCoordinates.height),
     );
-    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardPad(0));
+    const hide = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardPad(0);
+      // Dismissing the keyboard (system back / swipe) ends the edit — the blur
+      // handler deliberately doesn't, because Android fires it on touch-down of
+      // every toolbar tap.
+      if (!toolbarActionRef.current) commitEdit();
+    });
     return () => {
       show.remove();
       frame.remove();
       hide.remove();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- commitEdit reads
+    // the draft through editingRef, so this listener never goes stale.
   }, []);
 
   /** Write the in-flight draft to the store, without leaving edit mode. */
   const commitDraft = () => {
-    const cur = editing;
+    const cur = editingRef.current;
     if (!cur) return;
     const store = useStore.getState();
     const node = findNode(store.project.root.children, cur.id);
@@ -279,34 +297,40 @@ export function OutlineScreen({
   };
 
   /**
-   * Run a structural op from the editing toolbar: save what's typed, point the
-   * store's selection at the edited node (the ops all act on the selection),
-   * apply, then keep editing — the same node for indent/outdent/move, or the
-   * newly created one for ⏎. That's the desktop's Tab/Alt+↑↓/Enter flow, made
-   * tappable (MOBILE.md Phase 3).
+   * Run a structural op from the toolbar: save anything typed, point the store's
+   * selection at the target (every op acts on the selection), apply, and stay
+   * put. The desktop's Tab / Alt+↑↓ / Enter flow, made tappable (MOBILE.md
+   * Phase 3).
+   *
+   * This works on the *selection*, not on text focus, on purpose: Android blurs
+   * the editor on touch-down, and a moved row can be remounted by the list, so
+   * anything that depended on holding keyboard focus would drop out mid-op.
+   * Editing is resumed afterwards when we were editing (best effort); the
+   * toolbar itself stays as long as a row is selected.
    */
-  const runStructural = (op: () => void) => {
-    const cur = editing;
-    if (!cur) return;
+  const runStructural = (op: () => void, opts?: { edit?: boolean }) => {
+    const cur = editingRef.current;
+    const targetId = cur?.id ?? selectedId;
+    if (!targetId) return;
     toolbarActionRef.current = true;
     commitDraft();
     const store = useStore.getState();
-    store.select(cur.id);
+    store.select(targetId);
     op();
     const after = useStore.getState();
-    const nextId = after.selectedId ?? cur.id;
+    const nextId = after.selectedId ?? targetId;
     const node = findNode(after.project.root.children, nextId);
-    if (node) {
+    if (node && (opts?.edit || cur)) {
       setEditing({ id: node.id, draft: node.content });
-      // Same node → the existing input needs re-focusing (a new node's input
-      // mounts with autoFocus and takes focus on its own).
-      if (node.id === cur.id) requestAnimationFrame(() => editInputRef.current?.focus());
+      // Same node → its input may have lost focus; a brand-new node's input
+      // mounts with autoFocus and takes focus itself.
+      if (node.id === cur?.id) setTimeout(() => editInputRef.current?.focus(), 60);
     } else {
       setEditing(null);
     }
     setTimeout(() => {
       toolbarActionRef.current = false;
-    }, 60);
+    }, 150);
   };
 
   const startEdit = (node: TaskNode) => {
@@ -391,7 +415,7 @@ export function OutlineScreen({
               onChangeDraft={(text) =>
                 setEditing((cur) => (cur ? { ...cur, draft: text } : cur))
               }
-              onEndEdit={commitEdit}
+              onBlurInput={commitDraft}
               palette={palette}
             />
           </Pressable>
@@ -405,9 +429,10 @@ export function OutlineScreen({
         keyboardShouldPersistTaps="handled"
       />
 
-      {editing ? (
+      {toolbarVisible && !captureOpen ? (
         // The soft keyboard can't express Tab / Alt+↑↓ / Enter, so the desktop's
-        // structural keys get a toolbar docked above it (MOBILE.md Phase 3).
+        // structural keys get a toolbar (MOBILE.md Phase 3). It's tied to the
+        // SELECTION, not to editing, so it survives ops that drop keyboard focus.
         <View
           style={[
             styles.toolbar,
@@ -420,16 +445,17 @@ export function OutlineScreen({
         >
           {(
             [
-              { key: 'outdent', glyph: '⇤', hint: 'Outdent', op: () => useStore.getState().outdentSelected() },
-              { key: 'indent', glyph: '⇥', hint: 'Indent', op: () => useStore.getState().indentSelected() },
-              { key: 'up', glyph: '↑', hint: 'Move up', op: () => useStore.getState().moveSelected(-1) },
-              { key: 'down', glyph: '↓', hint: 'Move down', op: () => useStore.getState().moveSelected(1) },
-              { key: 'new', glyph: '⏎', hint: 'New task', op: () => useStore.getState().newSibling() },
+              { key: 'outdent', glyph: '⇤', hint: 'Outdent', edit: false, op: () => useStore.getState().outdentSelected() },
+              { key: 'indent', glyph: '⇥', hint: 'Indent', edit: false, op: () => useStore.getState().indentSelected() },
+              { key: 'up', glyph: '↑', hint: 'Move up', edit: false, op: () => useStore.getState().moveSelected(-1) },
+              { key: 'down', glyph: '↓', hint: 'Move down', edit: false, op: () => useStore.getState().moveSelected(1) },
+              // A fresh node should open for typing straight away.
+              { key: 'new', glyph: '⏎', hint: 'New task', edit: true, op: () => useStore.getState().newSibling() },
             ] as const
           ).map((btn) => (
             <Pressable
               key={btn.key}
-              onPress={() => runStructural(btn.op)}
+              onPress={() => runStructural(btn.op, { edit: btn.edit })}
               style={({ pressed }) => [
                 styles.toolBtn,
                 { backgroundColor: pressed ? palette.hover : palette.surfaceAlt },
@@ -443,17 +469,20 @@ export function OutlineScreen({
             onPress={() => {
               Keyboard.dismiss();
               commitEdit();
+              useStore.getState().select(null); // clears selection → hides the toolbar
             }}
             style={({ pressed }) => [
               styles.toolDone,
               { backgroundColor: palette.accent, opacity: pressed ? 0.7 : 1 },
             ]}
-            accessibilityLabel="Done editing"
+            accessibilityLabel="Done"
           >
             <Text style={styles.toolDoneText}>Done</Text>
           </Pressable>
         </View>
-      ) : captureOpen ? (
+      ) : null}
+
+      {captureOpen ? (
         <View
           style={[
             styles.captureBar,
@@ -506,7 +535,12 @@ export function OutlineScreen({
             commitEdit();
             setCaptureOpen(true);
           }}
-          style={[styles.fab, { backgroundColor: palette.accent }]}
+          // Floats clear of the toolbar when one is showing, so capture stays
+          // reachable while a row is selected.
+          style={[
+            styles.fab,
+            { backgroundColor: palette.accent, bottom: toolbarVisible ? 84 : 24 },
+          ]}
         >
           <Text style={styles.fabText}>＋</Text>
         </Pressable>

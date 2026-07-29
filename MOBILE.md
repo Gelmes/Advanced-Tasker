@@ -103,8 +103,16 @@ answer to keys a soft keyboard can't express.
 - **Phase 2 — companion interactions.** Status cycling, timers, quick capture,
   inline content edit, task details, offline dirty-flag flow. *Milestone: daily
   usable.*
-- **Phase 3 — structural editing.** Keyboard toolbar (indent/outdent/new
-  sibling), long-press structural ops, gesture-handler drag reorder.
+- **Phase 3 — structural editing.** *Done except drag:* a structural toolbar
+  (outdent / indent / move up / move down / new task / Done) plus a Move section
+  in the long-press sheet. The toolbar follows the **selection, not editing**:
+  Android blurs the editor on touch-down and a moved row can be remounted by the
+  list, so anything keyed to keyboard focus vanished mid-reorder. Editing resumes
+  after an op on a best-effort basis; blur therefore only *saves* the draft, and
+  edit mode ends on explicit exits (Done, row switch, long-press, back) or
+  `keyboardDidHide`. **Still open: gesture-handler drag reorder** (needs
+  gesture-handler + reanimated, row measurement, before/inside/after drop math
+  and auto-scroll — its own pass).
 - **Phase 4 — Android polish.** Share-sheet capture, home-screen widget,
   notifications for running timers, charts.
 

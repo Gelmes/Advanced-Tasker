@@ -218,6 +218,55 @@ export function RowSheet({ nodeId, onClose }: { nodeId: string | null; onClose: 
                 border={palette.border}
               />
             ) : null}
+
+            {/* Structural ops (MOBILE.md Phase 3) — the sheet stays open so
+                repeated taps nudge the node into place. */}
+            <Text style={[styles.sectionLabel, { color: palette.inkSoft }]}>Move</Text>
+            <View style={styles.moveRow}>
+              {(
+                [
+                  { key: 'outdent', glyph: '⇤', label: 'Outdent', op: () => store.outdentSelected() },
+                  { key: 'up', glyph: '↑', label: 'Up', op: () => store.moveSelected(-1) },
+                  { key: 'down', glyph: '↓', label: 'Down', op: () => store.moveSelected(1) },
+                  { key: 'indent', glyph: '⇥', label: 'Indent', op: () => store.indentSelected() },
+                ] as const
+              ).map((btn) => (
+                <Pressable
+                  key={btn.key}
+                  onPress={() => {
+                    // All these ops act on the store's selection.
+                    useStore.getState().select(nodeId);
+                    btn.op();
+                  }}
+                  style={({ pressed }) => [
+                    styles.moveBtn,
+                    {
+                      backgroundColor: pressed ? palette.hover : palette.surfaceAlt,
+                      borderColor: palette.border,
+                    },
+                  ]}
+                  accessibilityLabel={btn.label}
+                >
+                  <Text style={[styles.moveGlyph, { color: palette.ink }]}>{btn.glyph}</Text>
+                  <Text style={[styles.moveLabel, { color: palette.inkSoft }]}>{btn.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <ActionRow
+              label="Add sub-task"
+              color={palette.ink}
+              valueColor={palette.inkMid}
+              border={palette.border}
+              onPress={() => {
+                // New sibling below, then indent it under this node.
+                const store2 = useStore.getState();
+                store2.select(nodeId);
+                store2.newSibling();
+                store2.indentSelected();
+                store2.setMode('selected');
+                onClose();
+              }}
+            />
             <ActionRow
               label={armDelete ? 'Tap again to delete' : 'Delete'}
               color={palette.danger}
@@ -279,6 +328,19 @@ const styles = StyleSheet.create({
   actionValueArea: { justifyContent: 'center', minHeight: 48, paddingLeft: 12 },
   actionLabel: { fontSize: font.base, fontWeight: '500' },
   actionValue: { fontSize: font.base },
+  sectionLabel: { fontSize: font.xs, fontWeight: '600', marginTop: 14, marginBottom: 6 },
+  moveRow: { flexDirection: 'row', gap: 8, marginBottom: 4 },
+  moveBtn: {
+    flex: 1,
+    minHeight: 52,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 1,
+  },
+  moveGlyph: { fontSize: 17 },
+  moveLabel: { fontSize: font.xs },
   closeBtn: {
     marginTop: 14,
     borderRadius: radius.md,

@@ -72,6 +72,7 @@ const Row = memo(function Row({
   selected,
   editing,
   draft,
+  inputRef,
   onChangeDraft,
   onEndEdit,
   palette,
@@ -83,6 +84,9 @@ const Row = memo(function Row({
   selected: boolean;
   editing: boolean;
   draft: string;
+  /** Set only on the row being edited, so the screen can restore focus after a
+   *  toolbar op (indent/move keep you typing in the same node). */
+  inputRef: React.RefObject<TextInput | null> | null;
   onChangeDraft: (text: string) => void;
   onEndEdit: () => void;
   palette: ReturnType<typeof usePalette>;
@@ -130,6 +134,7 @@ const Row = memo(function Row({
       </Pressable>
       {editing ? (
         <TextInput
+          ref={inputRef}
           style={[
             styles.content,
             styles.editInput,
@@ -217,6 +222,10 @@ export function OutlineScreen({
   const [keyboardPad, setKeyboardPad] = useState(0);
   const captureRef = useRef<TextInput>(null);
   const listRef = useRef<FlatList<VisibleRow>>(null);
+  const editInputRef = useRef<TextInput | null>(null);
+  // Tapping a toolbar button blurs the editor; without this guard the blur
+  // handler would close edit mode before the structural op could run.
+  const toolbarActionRef = useRef(false);
 
   // Lift = the full reported IME height. In theory the SafeAreaView's nav-bar
   // inset should be netted out, but in practice that lands the bar *under* the
@@ -253,16 +262,51 @@ export function OutlineScreen({
     };
   }, []);
 
+  /** Write the in-flight draft to the store, without leaving edit mode. */
+  const commitDraft = () => {
+    const cur = editing;
+    if (!cur) return;
+    const store = useStore.getState();
+    const node = findNode(store.project.root.children, cur.id);
+    if (node && cur.draft !== node.content) store.setNodeContent(cur.id, cur.draft);
+  };
+
   /** Commit the in-flight inline edit (if any) and leave edit mode. */
   const commitEdit = () => {
-    setEditing((cur) => {
-      if (cur) {
-        const store = useStore.getState();
-        const node = findNode(store.project.root.children, cur.id);
-        if (node && cur.draft !== node.content) store.setNodeContent(cur.id, cur.draft);
-      }
-      return null;
-    });
+    if (toolbarActionRef.current) return; // a structural op is mid-flight
+    commitDraft();
+    setEditing(null);
+  };
+
+  /**
+   * Run a structural op from the editing toolbar: save what's typed, point the
+   * store's selection at the edited node (the ops all act on the selection),
+   * apply, then keep editing — the same node for indent/outdent/move, or the
+   * newly created one for ⏎. That's the desktop's Tab/Alt+↑↓/Enter flow, made
+   * tappable (MOBILE.md Phase 3).
+   */
+  const runStructural = (op: () => void) => {
+    const cur = editing;
+    if (!cur) return;
+    toolbarActionRef.current = true;
+    commitDraft();
+    const store = useStore.getState();
+    store.select(cur.id);
+    op();
+    const after = useStore.getState();
+    const nextId = after.selectedId ?? cur.id;
+    const node = findNode(after.project.root.children, nextId);
+    if (node) {
+      setEditing({ id: node.id, draft: node.content });
+      // Same node → the existing input needs re-focusing (a new node's input
+      // mounts with autoFocus and takes focus on its own).
+      if (node.id === cur.id) requestAnimationFrame(() => editInputRef.current?.focus());
+    } else {
+      setEditing(null);
+    }
+    setTimeout(() => {
+      toolbarActionRef.current = false;
+    }, 60);
   };
 
   const startEdit = (node: TaskNode) => {
@@ -343,6 +387,7 @@ export function OutlineScreen({
               selected={selectedId === item.node.id}
               editing={editing?.id === item.node.id}
               draft={editing?.id === item.node.id ? editing.draft : ''}
+              inputRef={editing?.id === item.node.id ? editInputRef : null}
               onChangeDraft={(text) =>
                 setEditing((cur) => (cur ? { ...cur, draft: text } : cur))
               }
@@ -360,7 +405,55 @@ export function OutlineScreen({
         keyboardShouldPersistTaps="handled"
       />
 
-      {captureOpen ? (
+      {editing ? (
+        // The soft keyboard can't express Tab / Alt+↑↓ / Enter, so the desktop's
+        // structural keys get a toolbar docked above it (MOBILE.md Phase 3).
+        <View
+          style={[
+            styles.toolbar,
+            {
+              backgroundColor: palette.surface,
+              borderTopColor: palette.border,
+              marginBottom: keyboardLift,
+            },
+          ]}
+        >
+          {(
+            [
+              { key: 'outdent', glyph: '⇤', hint: 'Outdent', op: () => useStore.getState().outdentSelected() },
+              { key: 'indent', glyph: '⇥', hint: 'Indent', op: () => useStore.getState().indentSelected() },
+              { key: 'up', glyph: '↑', hint: 'Move up', op: () => useStore.getState().moveSelected(-1) },
+              { key: 'down', glyph: '↓', hint: 'Move down', op: () => useStore.getState().moveSelected(1) },
+              { key: 'new', glyph: '⏎', hint: 'New task', op: () => useStore.getState().newSibling() },
+            ] as const
+          ).map((btn) => (
+            <Pressable
+              key={btn.key}
+              onPress={() => runStructural(btn.op)}
+              style={({ pressed }) => [
+                styles.toolBtn,
+                { backgroundColor: pressed ? palette.hover : palette.surfaceAlt },
+              ]}
+              accessibilityLabel={btn.hint}
+            >
+              <Text style={[styles.toolGlyph, { color: palette.ink }]}>{btn.glyph}</Text>
+            </Pressable>
+          ))}
+          <Pressable
+            onPress={() => {
+              Keyboard.dismiss();
+              commitEdit();
+            }}
+            style={({ pressed }) => [
+              styles.toolDone,
+              { backgroundColor: palette.accent, opacity: pressed ? 0.7 : 1 },
+            ]}
+            accessibilityLabel="Done editing"
+          >
+            <Text style={styles.toolDoneText}>Done</Text>
+          </Pressable>
+        </View>
+      ) : captureOpen ? (
         <View
           style={[
             styles.captureBar,
@@ -483,6 +576,30 @@ const styles = StyleSheet.create({
     padding: 10,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
+  toolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  toolBtn: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toolGlyph: { fontSize: 18 },
+  toolDone: {
+    minHeight: 44,
+    paddingHorizontal: 16,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toolDoneText: { color: '#ffffff', fontSize: font.base, fontWeight: '600' },
   captureInput: {
     flex: 1,
     borderWidth: 1,

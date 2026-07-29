@@ -1,41 +1,68 @@
-// Phase 0 mobile shell (MOBILE.md). Proves the native entry boots in Expo Go
-// with the shared theme tokens and none of the web-only modules. Screens
-// (Projects, Outline, capture) replace the placeholder body in Phase 1.
+// Mobile shell (MOBILE.md). A three-screen back-stack — Projects → Outline,
+// plus Sync settings — over the shared store. Deliberately no navigation
+// library: v1 has three screens and a linear stack; revisit if that grows.
 
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
-import { font, radius } from '../theme';
+import { useEffect, useState } from 'react';
+import { BackHandler, SafeAreaView, StyleSheet } from 'react-native';
+import { hydrateSyncConfig } from './secrets';
+import { openMobileProject, useMobileAutoSync, useMobileCacheAutosave } from './sync';
+import { OutlineScreen } from './screens/OutlineScreen';
+import { ProjectsScreen } from './screens/ProjectsScreen';
+import { SettingsScreen } from './screens/SettingsScreen';
 import { MobileThemeProvider, useTheme } from './theme';
+
+type Screen = 'projects' | 'outline' | 'settings';
 
 function Shell() {
   const { name, palette } = useTheme();
+  const [screen, setScreen] = useState<Screen>('projects');
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
+
+  // Boot: load the sync config from the keystore into the store; land on
+  // settings when unconfigured (the first-run experience).
+  useEffect(() => {
+    void hydrateSyncConfig().then((configured) => {
+      if (!configured) setScreen('settings');
+      setReady(true);
+    });
+  }, []);
+
+  // The mobile sync rhythm + cache autosave run for whichever project is open.
+  useMobileAutoSync(openId);
+  useMobileCacheAutosave(openId);
+
+  // Android hardware/gesture back pops to Projects before leaving the app.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (screen !== 'projects') {
+        setScreen('projects');
+        return true;
+      }
+      return false;
+    });
+    return () => sub.remove();
+  }, [screen]);
+
   return (
     <SafeAreaView style={[styles.app, { backgroundColor: palette.appBg }]}>
-      <View
-        style={[
-          styles.header,
-          { backgroundColor: palette.surface, borderBottomColor: palette.border },
-        ]}
-      >
-        <Text style={[styles.title, { color: palette.ink }]}>Advanced Tasker</Text>
-      </View>
-      <View style={styles.body}>
-        <View
-          style={[
-            styles.card,
-            { backgroundColor: palette.surfaceAlt, borderColor: palette.border },
-          ]}
-        >
-          <Text style={[styles.cardTitle, { color: palette.ink }]}>
-            Mobile shell — Phase 0
-          </Text>
-          <Text style={[styles.cardText, { color: palette.inkMid }]}>
-            Native entry is booting with the shared theme ({name} mode, following
-            the system setting). Next up: the Projects list, live-synced from the
-            server.
-          </Text>
-        </View>
-      </View>
+      {ready && screen === 'projects' && (
+        <ProjectsScreen
+          onOpen={async (id) => {
+            await openMobileProject(id);
+            setOpenId(id);
+            setScreen('outline');
+          }}
+          onSettings={() => setScreen('settings')}
+        />
+      )}
+      {ready && screen === 'outline' && (
+        <OutlineScreen onBack={() => setScreen('projects')} />
+      )}
+      {ready && screen === 'settings' && (
+        <SettingsScreen onBack={() => setScreen('projects')} />
+      )}
       <StatusBar style={name === 'dark' ? 'light' : 'dark'} />
     </SafeAreaView>
   );
@@ -51,19 +78,4 @@ export function MobileApp() {
 
 const styles = StyleSheet.create({
   app: { flex: 1 },
-  header: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  title: { fontSize: font.lg, fontWeight: '600' },
-  body: { flex: 1, padding: 16, justifyContent: 'center' },
-  card: {
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    padding: 16,
-    gap: 8,
-  },
-  cardTitle: { fontSize: font.base, fontWeight: '600' },
-  cardText: { fontSize: font.md, lineHeight: 19 },
 });

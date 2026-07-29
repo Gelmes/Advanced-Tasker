@@ -103,16 +103,26 @@ answer to keys a soft keyboard can't express.
 - **Phase 2 — companion interactions.** Status cycling, timers, quick capture,
   inline content edit, task details, offline dirty-flag flow. *Milestone: daily
   usable.*
-- **Phase 3 — structural editing.** *Done except drag:* a structural toolbar
+- **Phase 3 — structural editing.** *Done.* A structural toolbar
   (outdent / indent / move up / move down / new task / Done) plus a Move section
   in the long-press sheet. The toolbar follows the **selection, not editing**:
   Android blurs the editor on touch-down and a moved row can be remounted by the
   list, so anything keyed to keyboard focus vanished mid-reorder. Editing resumes
   after an op on a best-effort basis; blur therefore only *saves* the draft, and
   edit mode ends on explicit exits (Done, row switch, long-press, back) or
-  `keyboardDidHide`. **Still open: gesture-handler drag reorder** (needs
-  gesture-handler + reanimated, row measurement, before/inside/after drop math
-  and auto-scroll — its own pass).
+  `keyboardDidHide`.
+
+  **Drag reorder** is a grip on the selected row (`PanResponder` — unreliable
+  for *mouse* on RNW, which is why the desktop uses raw pointer events, but the
+  right tool for touch). The pan is **quantised into steps** that run the same
+  store actions as the toolbar — vertical steps `moveSelected`, horizontal steps
+  indent/outdent — instead of painting a ghost and computing a drop target. So
+  the tree reorders live under the finger, every move goes through the tested
+  tree ops, there are no virtualised-row measurements to get wrong, and no new
+  native deps. The list scroll-follows the row so a drag can run past the bottom
+  of the screen. Trade-offs: vertical movement is sibling-scoped (cross-parent
+  moves = outdent then move, rather than `moveNodeRelative`'s free
+  before/inside/after drop), and one drag records several undo steps.
 - **Phase 4 — Android polish.** Share-sheet capture, home-screen widget,
   notifications for running timers, charts.
 

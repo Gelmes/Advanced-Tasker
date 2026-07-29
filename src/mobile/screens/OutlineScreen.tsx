@@ -20,11 +20,13 @@ import {
   ActivityIndicator,
   FlatList,
   Keyboard,
+  PanResponder,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
+  type GestureResponderHandlers,
 } from 'react-native';
 import type { StatusDef, TaskNode } from '../../model/types';
 import { findNode } from '../../model/tree';
@@ -51,6 +53,17 @@ function flattenVisible(nodes: TaskNode[], depth: number, out: VisibleRow[]): Vi
   return out;
 }
 
+/**
+ * Drag thresholds. A drag doesn't paint a floating ghost and compute a drop
+ * target; it applies the *same* tree ops as the toolbar as the finger passes
+ * each threshold, so the outline reorders live under your thumb and every move
+ * goes through the tested `moveWithinSiblings` / `indent` / `outdent` path.
+ * Vertical ≈ one row height; horizontal is wider so a sloppy vertical drag
+ * doesn't re-parent by accident.
+ */
+const DRAG_STEP_Y = 44;
+const DRAG_STEP_X = 64;
+
 /** Append a captured line as a top-level node (keeps capture rapid-fire safe:
  * each call re-reads the store, so consecutive captures stack in order). */
 function captureNode(text: string): void {
@@ -73,6 +86,8 @@ const Row = memo(function Row({
   editing,
   draft,
   inputRef,
+  dragging,
+  gripHandlers,
   onChangeDraft,
   onBlurInput,
   palette,
@@ -84,6 +99,11 @@ const Row = memo(function Row({
   selected: boolean;
   editing: boolean;
   draft: string;
+  /** True while this row is the one being dragged. */
+  dragging: boolean;
+  /** Pan handlers for the drag grip — set only on the selected row, which is
+   *  the only row that shows a grip. */
+  gripHandlers: GestureResponderHandlers | null;
   /** Set only on the row being edited, so the screen can restore focus after a
    *  toolbar op (indent/move keep you typing in the same node). */
   inputRef: React.RefObject<TextInput | null> | null;
@@ -104,8 +124,13 @@ const Row = memo(function Row({
         {
           paddingLeft: 8 + depth * 18,
           borderBottomColor: palette.border,
-          backgroundColor: selected ? palette.accentSoft : 'transparent',
+          backgroundColor: dragging
+            ? palette.hover
+            : selected
+              ? palette.accentSoft
+              : 'transparent',
         },
+        dragging && styles.rowDragging,
       ]}
     >
       {hasChildren ? (
@@ -199,6 +224,15 @@ const Row = memo(function Row({
             <Text style={[styles.playText, { color: palette.inkSoft }]}>▶</Text>
           </Pressable>
         ))}
+      {/* Grip appears on the selected row only: keeps rows uncluttered and
+          stops a stray thumb from reordering something you didn't mean to. */}
+      {gripHandlers && !editing ? (
+        <View {...gripHandlers} style={styles.grip} hitSlop={8}>
+          <Text style={[styles.gripText, { color: dragging ? palette.accent : palette.inkFaint }]}>
+            ⠿
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 });
@@ -222,6 +256,7 @@ export function OutlineScreen({
   const [captureOpen, setCaptureOpen] = useState(initialCapture);
   const [captureText, setCaptureText] = useState('');
   const [keyboardPad, setKeyboardPad] = useState(0);
+  const [dragging, setDragging] = useState(false);
   const captureRef = useRef<TextInput>(null);
   const listRef = useRef<FlatList<VisibleRow>>(null);
   const editInputRef = useRef<TextInput | null>(null);
@@ -346,6 +381,81 @@ export function OutlineScreen({
     }
   };
 
+  /**
+   * Drag-to-reorder (MOBILE.md Phase 3). Rather than paint a floating ghost and
+   * compute a drop target, the pan is quantised into steps and each step runs
+   * the same store action the toolbar uses — so the tree reorders live under the
+   * finger, every move goes through the tested tree ops, and there's no
+   * measurement of virtualised rows to get wrong. Vertical steps reorder among
+   * siblings; horizontal steps indent/outdent. The list follows the row so a
+   * drag can run past the bottom of the screen.
+   *
+   * PanResponder (not gesture-handler) is fine here: it's unreliable for *mouse*
+   * on react-native-web, which is why the desktop uses raw pointer events, but
+   * touch on native is exactly what it's for.
+   */
+  const consumedY = useRef(0);
+  const consumedX = useRef(0);
+
+  const scrollToSelected = () => {
+    const after = useStore.getState();
+    if (!after.selectedId) return;
+    const visible = flattenVisible(after.project.root.children, 0, []);
+    const index = visible.findIndex((r) => r.node.id === after.selectedId);
+    if (index < 0) return;
+    try {
+      listRef.current?.scrollToIndex({ index, viewPosition: 0.5, animated: false });
+    } catch {
+      // unmeasured row — the next render settles it
+    }
+  };
+
+  const dragPan = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        // Claim the gesture so the list doesn't scroll instead of dragging.
+        onPanResponderTerminationRequest: () => false,
+        onPanResponderGrant: () => {
+          consumedY.current = 0;
+          consumedX.current = 0;
+          commitEdit();
+          Keyboard.dismiss();
+          setDragging(true);
+        },
+        onPanResponderMove: (_e, g) => {
+          const store = useStore.getState();
+          if (!store.selectedId) return;
+          // Consume whole steps, so a boundary (first/last sibling, top level)
+          // absorbs the movement instead of firing repeatedly.
+          while (g.dy - consumedY.current >= DRAG_STEP_Y) {
+            consumedY.current += DRAG_STEP_Y;
+            useStore.getState().moveSelected(1);
+            scrollToSelected();
+          }
+          while (g.dy - consumedY.current <= -DRAG_STEP_Y) {
+            consumedY.current -= DRAG_STEP_Y;
+            useStore.getState().moveSelected(-1);
+            scrollToSelected();
+          }
+          while (g.dx - consumedX.current >= DRAG_STEP_X) {
+            consumedX.current += DRAG_STEP_X;
+            useStore.getState().indentSelected();
+          }
+          while (g.dx - consumedX.current <= -DRAG_STEP_X) {
+            consumedX.current -= DRAG_STEP_X;
+            useStore.getState().outdentSelected();
+          }
+        },
+        onPanResponderRelease: () => setDragging(false),
+        onPanResponderTerminate: () => setDragging(false),
+      }),
+    // Handlers read live state through the store and refs, so this is created once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
   const submitCapture = () => {
     captureNode(captureText);
     setCaptureText('');
@@ -388,7 +498,8 @@ export function OutlineScreen({
         ref={listRef}
         data={rows}
         keyExtractor={(r) => r.node.id}
-        extraData={[selectedId, editing, now, keyboardPad]}
+        extraData={[selectedId, editing, now, keyboardPad, dragging]}
+        scrollEnabled={!dragging}
         renderItem={({ item }) => (
           <Pressable
             onPress={() => {
@@ -412,6 +523,8 @@ export function OutlineScreen({
               editing={editing?.id === item.node.id}
               draft={editing?.id === item.node.id ? editing.draft : ''}
               inputRef={editing?.id === item.node.id ? editInputRef : null}
+              dragging={dragging && selectedId === item.node.id}
+              gripHandlers={selectedId === item.node.id ? dragPan.panHandlers : null}
               onChangeDraft={(text) =>
                 setEditing((cur) => (cur ? { ...cur, draft: text } : cur))
               }
@@ -602,6 +715,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   playText: { fontSize: 17, marginLeft: 2 },
+  rowDragging: { elevation: 3 },
+  grip: {
+    width: 32,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gripText: { fontSize: 18 },
   empty: { padding: 24, fontSize: font.base },
   captureBar: {
     flexDirection: 'row',

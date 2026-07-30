@@ -123,8 +123,19 @@ answer to keys a soft keyboard can't express.
   of the screen. Trade-offs: vertical movement is sibling-scoped (cross-parent
   moves = outdent then move, rather than `moveNodeRelative`'s free
   before/inside/after drop), and one drag records several undo steps.
-- **Phase 4 — Android polish.** Share-sheet capture, home-screen widget,
-  notifications for running timers, charts.
+- **Phase 4 — Android polish.** *Charts and timer notifications done.*
+  - **Charts** — `model/analytics` is shared and `LineChart` ports unchanged
+    (it takes colors as props because SVG attributes can't resolve CSS
+    variables); throughput/cycle presentation is re-done for phone width.
+  - **Running-timer notification** — a *local* notification, which is why it
+    works in Expo Go (only push/remote needs a development build). Silent,
+    ongoing, dismissed on stop, reconciled on boot, and degrades silently if
+    the permission is refused.
+  - **Blocked on Expo Go — needs a development build:** share-sheet capture
+    (an intent filter in the manifest) and a home-screen widget (a native
+    widget provider). Expo Go runs a fixed native binary, so neither can be
+    added from JS; both need `npx expo run:android` or an EAS dev build, after
+    which the phone installs *Advanced Tasker* itself instead of Expo Go.
 
 ## Testing gate
 

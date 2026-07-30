@@ -131,11 +131,15 @@ answer to keys a soft keyboard can't express.
     works in Expo Go (only push/remote needs a development build). Silent,
     ongoing, dismissed on stop, reconciled on boot, and degrades silently if
     the permission is refused.
-  - **Blocked on Expo Go — needs a development build:** share-sheet capture
-    (an intent filter in the manifest) and a home-screen widget (a native
-    widget provider). Expo Go runs a fixed native binary, so neither can be
-    added from JS; both need `npx expo run:android` or an EAS dev build, after
-    which the phone installs *Advanced Tasker* itself instead of Expo Go.
+  - **Deferred by decision (Marco, 2026-07-29): share-sheet capture and the
+    home-screen widget.** Both need a development build — a share target is an
+    intent filter in the manifest, a widget is a native widget provider, and
+    Expo Go runs a fixed native binary, so neither can be added from JS. Doing
+    them means `npx expo run:android` or an EAS build, after which the phone
+    installs *Advanced Tasker* itself instead of Expo Go. Deliberately not
+    taken on yet: the app is being used daily on Expo Go first, and polish from
+    real use ranks above these two. Revisit when a dev build is wanted anyway
+    (permanent install, Play Store, or SDK upgrades).
 
 ## Testing gate
 

@@ -81,6 +81,12 @@ export function writeCachedProject(project: ProjectFile): void {
 export interface MobilePrefs {
   /** Default target for quick capture from the Projects screen. */
   lastProjectId?: string;
+  /**
+   * Whether a running-timer notification is currently posted. Persisted so a
+   * notice left behind by a killed app can be cleared on the next boot without
+   * loading the notifications module (and its Expo Go push warning) every time.
+   */
+  timerNoticePosted?: boolean;
 }
 
 export function readPrefs(): MobilePrefs {

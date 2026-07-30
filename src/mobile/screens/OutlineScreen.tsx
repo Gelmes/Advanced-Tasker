@@ -37,6 +37,7 @@ import { font, radius } from '../../theme';
 import { RowSheet } from '../components/RowSheet';
 import { syncAndCache } from '../sync';
 import { usePalette } from '../theme';
+import { ChartsScreen } from './ChartsScreen';
 
 interface VisibleRow {
   node: TaskNode;
@@ -257,6 +258,7 @@ export function OutlineScreen({
   const [captureText, setCaptureText] = useState('');
   const [keyboardPad, setKeyboardPad] = useState(0);
   const [dragging, setDragging] = useState(false);
+  const [chartsOpen, setChartsOpen] = useState(false);
   const captureRef = useRef<TextInput>(null);
   const listRef = useRef<FlatList<VisibleRow>>(null);
   const editInputRef = useRef<TextInput | null>(null);
@@ -485,6 +487,17 @@ export function OutlineScreen({
             </Text>
           ) : null}
         </View>
+        <Pressable
+          onPress={() => {
+            commitEdit();
+            setChartsOpen(true);
+          }}
+          hitSlop={12}
+          style={styles.syncBtn}
+          accessibilityLabel="Charts"
+        >
+          <Text style={styles.chartsIcon}>📊</Text>
+        </Pressable>
         {syncing ? (
           <ActivityIndicator color={palette.accent} />
         ) : (
@@ -660,6 +673,7 @@ export function OutlineScreen({
       )}
 
       <RowSheet nodeId={sheetId} onClose={() => setSheetId(null)} />
+      <ChartsScreen visible={chartsOpen} onClose={() => setChartsOpen(false)} />
     </View>
   );
 }
@@ -681,6 +695,7 @@ const styles = StyleSheet.create({
   syncStatus: { fontSize: font.xs },
   syncBtn: { minWidth: 40, minHeight: 40, alignItems: 'center', justifyContent: 'center' },
   syncIcon: { fontSize: 20 },
+  chartsIcon: { fontSize: 17 },
   list: { paddingBottom: 96 },
   row: {
     flexDirection: 'row',

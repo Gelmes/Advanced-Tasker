@@ -8,21 +8,32 @@
 //
 // The module is loaded LAZILY, on first use. Importing it in Expo Go logs a
 // warning that Android *push* was removed from Expo Go in SDK 53 — irrelevant
-// to local notifications, but alarming at app start. Deferring the import keeps
-// it off the boot path (and out of the way entirely if you never run a timer).
+// to local notifications, but alarming at app start. Deferring it keeps the
+// warning off the boot path (and out of the way entirely if you never run a
+// timer).
+//
+// Deliberately a `require`, not a dynamic `import()`: the latter routes through
+// Metro's async-bundle machinery, which throws
+// "Cannot read property 'reload' of undefined" in Expo Go. A require is
+// evaluated at call time, which is all the laziness we need.
 
 import { Platform } from 'react-native';
 import { readPrefs, writePrefs } from './cache';
 
 type NotificationsModule = typeof import('expo-notifications');
 
-let modulePromise: Promise<NotificationsModule | null> | null = null;
+let cached: NotificationsModule | null | undefined;
 
-function loadNotifications(): Promise<NotificationsModule | null> {
-  if (!modulePromise) {
-    modulePromise = import('expo-notifications').catch(() => null);
+function loadNotifications(): NotificationsModule | null {
+  if (cached === undefined) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      cached = require('expo-notifications') as NotificationsModule;
+    } catch {
+      cached = null;
+    }
   }
-  return modulePromise;
+  return cached;
 }
 
 const CHANNEL_ID = 'timer';
@@ -59,7 +70,7 @@ async function ensurePermission(N: NotificationsModule): Promise<boolean> {
 
 /** Post (or replace) the "timer running" notice for `taskName`. */
 export async function showTimerNotification(taskName: string, startedAt: string): Promise<void> {
-  const N = await loadNotifications();
+  const N = loadNotifications();
   if (!N || !(await ensurePermission(N))) return;
   const started = Date.parse(startedAt);
   const when = Number.isFinite(started)
@@ -91,8 +102,8 @@ export async function clearTimerNotification(): Promise<void> {
   // Don't load the module just to clear nothing — this runs on every boot. The
   // persisted flag still catches a notice left behind by a killed app, which is
   // the one case where nothing is loaded but something IS posted.
-  if (!modulePromise && !readPrefs().timerNoticePosted) return;
-  const N = await loadNotifications();
+  if (cached === undefined && !readPrefs().timerNoticePosted) return;
+  const N = loadNotifications();
   if (!N) return;
   try {
     await N.dismissNotificationAsync(TIMER_NOTIFICATION_ID);

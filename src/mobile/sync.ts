@@ -7,7 +7,7 @@
 import { useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
 import { useStore } from '../store/useStore';
-import { parseProject } from '../persistence/file';
+import { assertJsonBody, parseProject } from '../persistence/file';
 import { readCachedProject, writeCachedProject } from './cache';
 
 const DEBOUNCE_MS = 4000;
@@ -35,7 +35,9 @@ async function fetchProjectFromServer(id: string) {
   if (res.status === 410) throw new Error('This project was deleted on the server.');
   if (res.status === 401) throw new Error('Unauthorized — check the token.');
   if (!res.ok) throw new Error(`Pull failed (HTTP ${res.status}).`);
-  return parseProject(await res.text());
+  const body = await res.text();
+  assertJsonBody(body);
+  return parseProject(body);
 }
 
 /**

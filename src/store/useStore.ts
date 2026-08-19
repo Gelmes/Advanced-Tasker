@@ -35,6 +35,7 @@ import { scrollRowIntoView } from '../rowRegistry';
 import { flattenForIndex, type IndexEntry } from '../model/searchIndex';
 import type { StatusDef } from '../model/types';
 import {
+  assertJsonBody,
   openProject as openProjectFile,
   parseProject,
   saveProject as saveProjectToHandle,
@@ -589,7 +590,9 @@ export const useStore = create<AppState>((set, get) => {
         }
         // Normalize through the on-load migration — never adopt a shape the app
         // can't render (e.g. a legacy-format project relayed by the server).
-        const merged = parseProject(await res.text());
+        const body = await res.text();
+        assertJsonBody(body);
+        const merged = parseProject(body);
         const current = get().project;
         // If the user edited locally while the request was in flight, don't clobber
         // those edits — they'll push on the next auto-sync cycle.
@@ -647,7 +650,9 @@ export const useStore = create<AppState>((set, get) => {
         headers: { authorization: `Bearer ${syncToken}` },
       });
       if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : `HTTP ${res.status}`);
-      return (await res.json()) as Array<{ id: string; name: string }>;
+      const text = await res.text();
+      assertJsonBody(text);
+      return JSON.parse(text) as Array<{ id: string; name: string }>;
     },
 
     pullProject: async (id) => {
@@ -667,7 +672,9 @@ export const useStore = create<AppState>((set, get) => {
           set({ syncing: false, syncStatus: `Pull failed (HTTP ${res.status}).` });
           return;
         }
-        const project = parseProject(await res.text());
+        const pulled = await res.text();
+        assertJsonBody(pulled);
+        const project = parseProject(pulled);
         if (workspaceDir) {
           const fileName = availableFileName(projects, project.name || 'project');
           const ref = await createProjectFile(workspaceDir, fileName, project);

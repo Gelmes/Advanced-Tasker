@@ -94,6 +94,23 @@ export function fileApiAvailable(): boolean {
   );
 }
 
+/**
+ * Guard a response body that should be project/API JSON. A *successful* HTTP
+ * response can still be HTML — a captive-portal sign-in page, a hosting
+ * 404/landing page, or a URL pointing somewhere that isn't the sync server all
+ * answer with `<!DOCTYPE html…`. Without this the raw `JSON.parse` failure
+ * surfaces as "Unexpected token '<'", which says nothing about the real problem
+ * (the URL), so every sync path checks the body before parsing it.
+ */
+export function assertJsonBody(text: string): void {
+  if (text.trimStart().startsWith('<')) {
+    throw new Error(
+      'That URL returned a web page, not the sync API. Check the server URL ' +
+        '(and, on public Wi-Fi, that you are past any sign-in page).',
+    );
+  }
+}
+
 export function serialize(project: ProjectFile): string {
   return JSON.stringify(project, null, 2);
 }
